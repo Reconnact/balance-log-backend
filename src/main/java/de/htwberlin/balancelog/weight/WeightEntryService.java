@@ -22,8 +22,11 @@ public class WeightEntryService {
 		this.users = users;
 	}
 
-	public List<WeightEntryResponse> findAll(UUID ownerId) {
-		return entries.findAllByOwnerIdOrderByMeasuredAtAsc(ownerId).stream()
+	public List<WeightEntryResponse> findAll(UUID ownerId, Instant from, Instant to) {
+		if (from != null && to != null && from.isAfter(to)) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "from is after to.");
+		}
+		return entries.findAllInPeriod(ownerId, from, to).stream()
 				.map(WeightEntryService::toResponse)
 				.toList();
 	}

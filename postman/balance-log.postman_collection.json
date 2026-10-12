@@ -460,6 +460,98 @@
       }
     },
     {
+      "name": "Weight entries - list from",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200', () => pm.response.to.have.status(200));",
+              "pm.test('from is inclusive', () => pm.expect(pm.response.json().map(e => e.id)).to.include(pm.collectionVariables.get('entryId')));",
+              "pm.test('nothing before from', () => pm.response.json().forEach(e => pm.expect(Date.parse(e.measuredAt)).to.be.at.least(Date.parse('2026-10-02T07:00:00Z'))));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+        },
+        "url": "{{baseUrl}}/weight-entries?from=2026-10-02T07:00:00Z"
+      }
+    },
+    {
+      "name": "Weight entries - list to",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200', () => pm.response.to.have.status(200));",
+              "pm.test('to is inclusive', () => pm.expect(pm.response.json().map(e => e.id)).to.include(pm.collectionVariables.get('entryId')));",
+              "pm.test('nothing after to', () => pm.response.json().forEach(e => pm.expect(Date.parse(e.measuredAt)).to.be.at.most(Date.parse('2026-10-02T07:00:00Z'))));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+        },
+        "url": "{{baseUrl}}/weight-entries?to=2026-10-02T07:00:00Z"
+      }
+    },
+    {
+      "name": "Weight entries - list from after to (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('400', () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+        },
+        "url": "{{baseUrl}}/weight-entries?from=2026-10-31T00:00:00Z&to=2026-09-01T00:00:00Z"
+      }
+    },
+    {
+      "name": "Weight entries - list from no instant (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('400', () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+        },
+        "url": "{{baseUrl}}/weight-entries?from=last-week"
+      }
+    },
+    {
       "name": "Weight entries - delete",
       "event": [
         {

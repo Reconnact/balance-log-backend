@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
@@ -50,11 +51,22 @@ class WeightEntryServiceTest {
 
 	@Test
 	void findAllReturnsTheOwnersEntries() {
-		when(entries.findAllByOwnerIdOrderByMeasuredAtAsc(OWNER_ID)).thenReturn(List.of(
+		Instant from = Instant.parse("2026-09-01T00:00:00Z");
+		Instant to = Instant.parse("2026-10-31T00:00:00Z");
+		when(entries.findAllInPeriod(OWNER_ID, from, to)).thenReturn(List.of(
 				new WeightEntry(ENTRY_ID, owner, Instant.parse("2026-10-01T06:30:00Z"), new BigDecimal("82.4"))));
 
-		assertThat(service.findAll(OWNER_ID)).containsExactly(
+		assertThat(service.findAll(OWNER_ID, from, to)).containsExactly(
 				new WeightEntryResponse(ENTRY_ID, Instant.parse("2026-10-01T06:30:00Z"), new BigDecimal("82.4")));
+	}
+
+	@Test
+	void findAllRejectsFromAfterToWith400() {
+		assertThatThrownBy(() -> service.findAll(OWNER_ID, Instant.parse("2026-10-31T00:00:00Z"),
+				Instant.parse("2026-09-01T00:00:00Z")))
+				.isInstanceOfSatisfying(ResponseStatusException.class,
+						e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
+		verifyNoInteractions(entries);
 	}
 
 	@Test

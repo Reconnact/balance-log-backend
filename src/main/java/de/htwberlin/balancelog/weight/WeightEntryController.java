@@ -1,6 +1,7 @@
 package de.htwberlin.balancelog.weight;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -31,8 +33,9 @@ public class WeightEntryController {
 	}
 
 	@GetMapping
-	public List<WeightEntryResponse> findAll(@AuthenticationPrincipal Jwt jwt) {
-		return service.findAll(ownerId(jwt));
+	public List<WeightEntryResponse> findAll(@RequestParam(required = false) Instant from,
+			@RequestParam(required = false) Instant to, @AuthenticationPrincipal Jwt jwt) {
+		return service.findAll(ownerId(jwt), from, to);
 	}
 
 	@GetMapping("/{id}")

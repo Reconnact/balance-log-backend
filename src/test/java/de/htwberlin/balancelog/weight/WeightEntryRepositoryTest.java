@@ -31,9 +31,51 @@ class WeightEntryRepositoryTest {
 		entityManager.flush();
 		entityManager.clear();
 
-		assertThat(repository.findAllByOwnerIdOrderByMeasuredAtAsc(anna.getId()))
+		assertThat(repository.findAllInPeriod(anna.getId(), null, null))
 				.extracting(WeightEntry::getId)
 				.containsExactly(earlier.getId(), later.getId());
+	}
+
+	@Test
+	void findAllInPeriodKeepsEntriesBetweenFromAndToInclusive() {
+		User anna = user("anna@example.com");
+		entry(anna, "2026-10-01T06:30:00Z", "82.4");
+		WeightEntry atFrom = entry(anna, "2026-10-03T06:45:00Z", "82.1");
+		WeightEntry atTo = entry(anna, "2026-10-05T07:10:00Z", "81.9");
+		entry(anna, "2026-10-08T06:20:00Z", "82.0");
+		entityManager.flush();
+		entityManager.clear();
+
+		assertThat(repository.findAllInPeriod(anna.getId(), Instant.parse("2026-10-03T06:45:00Z"),
+				Instant.parse("2026-10-05T07:10:00Z")))
+				.extracting(WeightEntry::getId)
+				.containsExactly(atFrom.getId(), atTo.getId());
+	}
+
+	@Test
+	void findAllInPeriodWithFromOnlyKeepsEverythingFromThen() {
+		User anna = user("anna@example.com");
+		entry(anna, "2026-10-01T06:30:00Z", "82.4");
+		WeightEntry later = entry(anna, "2026-10-08T06:20:00Z", "82.0");
+		entityManager.flush();
+		entityManager.clear();
+
+		assertThat(repository.findAllInPeriod(anna.getId(), Instant.parse("2026-10-05T00:00:00Z"), null))
+				.extracting(WeightEntry::getId)
+				.containsExactly(later.getId());
+	}
+
+	@Test
+	void findAllInPeriodWithToOnlyKeepsEverythingUntilThen() {
+		User anna = user("anna@example.com");
+		WeightEntry earlier = entry(anna, "2026-10-01T06:30:00Z", "82.4");
+		entry(anna, "2026-10-08T06:20:00Z", "82.0");
+		entityManager.flush();
+		entityManager.clear();
+
+		assertThat(repository.findAllInPeriod(anna.getId(), null, Instant.parse("2026-10-05T00:00:00Z")))
+				.extracting(WeightEntry::getId)
+				.containsExactly(earlier.getId());
 	}
 
 	@Test

@@ -61,7 +61,7 @@ class WeightEntryControllerTest {
 
 	@Test
 	void getWeightEntriesReturnsTheOwnersEntries() throws Exception {
-		when(service.findAll(OWNER_ID)).thenReturn(List.of(
+		when(service.findAll(OWNER_ID, null, null)).thenReturn(List.of(
 				new WeightEntryResponse(UUID.fromString("3f2b8c1e-6d4a-4f7e-9b2a-1c5d8e0f4a71"),
 						Instant.parse("2026-10-01T06:30:00Z"), new BigDecimal("82.4")),
 				new WeightEntryResponse(UUID.fromString("a9e47d20-1b6c-4c3f-8e5d-7f2a9b0c6d13"),
@@ -75,6 +75,22 @@ class WeightEntryControllerTest {
 				.andExpect(jsonPath("$[0].weightKg").value(82.4))
 				.andExpect(jsonPath("$[0].owner").doesNotExist())
 				.andExpect(jsonPath("$[1].id").value("a9e47d20-1b6c-4c3f-8e5d-7f2a9b0c6d13"));
+	}
+
+	@Test
+	void getWeightEntriesPassesFromAndTo() throws Exception {
+		mockMvc.perform(get("/weight-entries").with(owner())
+				.param("from", "2026-09-01T00:00:00Z")
+				.param("to", "2026-10-31T00:00:00Z"))
+				.andExpect(status().isOk());
+		verify(service).findAll(OWNER_ID, Instant.parse("2026-09-01T00:00:00Z"), Instant.parse("2026-10-31T00:00:00Z"));
+	}
+
+	@Test
+	void getWeightEntriesReturns400ForAFromThatIsNoInstant() throws Exception {
+		mockMvc.perform(get("/weight-entries").with(owner()).param("from", "last week"))
+				.andExpect(status().isBadRequest());
+		verifyNoInteractions(service);
 	}
 
 	@Test
