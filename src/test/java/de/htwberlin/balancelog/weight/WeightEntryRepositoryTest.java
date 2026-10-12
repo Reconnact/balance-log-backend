@@ -36,6 +36,18 @@ class WeightEntryRepositoryTest {
 				.containsExactly(earlier.getId(), later.getId());
 	}
 
+	@Test
+	void findByIdAndOwnerIdFindsOnlyTheOwnersEntry() {
+		User anna = user("anna@example.com");
+		User ben = user("ben@example.com");
+		WeightEntry entry = entry(anna, "2026-10-01T06:30:00Z", "82.4");
+		entityManager.flush();
+		entityManager.clear();
+
+		assertThat(repository.findByIdAndOwnerId(entry.getId(), anna.getId())).isPresent();
+		assertThat(repository.findByIdAndOwnerId(entry.getId(), ben.getId())).isEmpty();
+	}
+
 	private User user(String email) {
 		User user = new User();
 		user.setEmail(email);
