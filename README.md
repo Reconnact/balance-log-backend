@@ -7,6 +7,8 @@ This repo is the Spring Boot REST API. The Vue frontend is in balance-log-fronte
 
 ## Run
 
+Needs Docker: bootRun starts Postgres from compose.yaml.
+
     ./gradlew bootRun
 
 - your weight entries: GET http://localhost:8080/weight-entries with the token
@@ -14,6 +16,8 @@ This repo is the Spring Boot REST API. The Vue frontend is in balance-log-fronte
 - log in: POST /auth/login returns a token
 
 ## Test
+
+Needs Docker: the tests start their own Postgres with Testcontainers.
 
     ./gradlew test
 
