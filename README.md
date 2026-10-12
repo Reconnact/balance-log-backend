@@ -9,7 +9,7 @@ This repo is the Spring Boot REST API. The Vue frontend is in balance-log-fronte
 
     ./gradlew bootRun
 
-- sample entries: GET http://localhost:8080/weight-entries
+- your weight entries: GET http://localhost:8080/weight-entries with the token
 - create an account: POST /auth/register with email and password
 - log in: POST /auth/login returns a token
 
