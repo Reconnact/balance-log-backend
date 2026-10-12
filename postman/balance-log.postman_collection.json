@@ -671,6 +671,28 @@
       }
     },
     {
+      "name": "Progress - no goal (404)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('404', () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+        },
+        "url": "{{baseUrl}}/progress"
+      }
+    },
+    {
       "name": "Goal - set",
       "event": [
         {
@@ -766,6 +788,50 @@
         "method": "GET",
         "auth": { "type": "noauth" },
         "url": "{{baseUrl}}/goal"
+      }
+    },
+    {
+      "name": "Progress",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200', () => pm.response.to.have.status(200));",
+              "pm.test('latest is the entry logged now', () => pm.expect(pm.response.json().latestKg).to.eql(82.1));",
+              "pm.test('kg to go', () => pm.expect(pm.response.json().kgToGo).to.eql(-7.1));",
+              "pm.test('one entry in 28 days -> no rate', () => pm.expect(pm.response.json().kgPerWeek).to.eql(null));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+        },
+        "url": "{{baseUrl}}/progress"
+      }
+    },
+    {
+      "name": "Progress - without token (401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('401', () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": { "type": "noauth" },
+        "url": "{{baseUrl}}/progress"
       }
     }
   ]

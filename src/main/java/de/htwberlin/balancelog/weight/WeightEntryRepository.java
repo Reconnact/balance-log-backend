@@ -21,4 +21,6 @@ public interface WeightEntryRepository extends CrudRepository<WeightEntry, UUID>
 
 	Optional<WeightEntry> findByIdAndOwnerId(UUID id, UUID ownerId);
 
+	Optional<WeightEntry> findFirstByOwnerIdOrderByMeasuredAtDesc(UUID ownerId);
+
 }

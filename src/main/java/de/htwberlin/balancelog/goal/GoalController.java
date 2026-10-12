@@ -25,6 +25,11 @@ public class GoalController {
 		return service.get(UUID.fromString(jwt.getSubject()));
 	}
 
+	@GetMapping("/progress")
+	public ProgressResponse progress(@AuthenticationPrincipal Jwt jwt) {
+		return service.progress(UUID.fromString(jwt.getSubject()));
+	}
+
 	@PutMapping("/goal")
 	public GoalResponse set(@Valid @RequestBody GoalRequest request, @AuthenticationPrincipal Jwt jwt) {
 		return service.set(UUID.fromString(jwt.getSubject()), request);

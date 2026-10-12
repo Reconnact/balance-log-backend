@@ -82,6 +82,20 @@ class WeightEntryRepositoryTest {
 	}
 
 	@Test
+	void findFirstByOwnerIdReturnsTheOwnersNewestEntry() {
+		User anna = user("anna@example.com");
+		User ben = user("ben@example.com");
+		entry(anna, "2026-10-01T06:30:00Z", "82.4");
+		WeightEntry newest = entry(anna, "2026-10-03T06:45:00Z", "82.1");
+		entry(ben, "2026-10-05T07:00:00Z", "75.0");
+		entityManager.flush();
+		entityManager.clear();
+
+		assertThat(repository.findFirstByOwnerIdOrderByMeasuredAtDesc(anna.getId()))
+				.hasValueSatisfying(found -> assertThat(found.getId()).isEqualTo(newest.getId()));
+	}
+
+	@Test
 	void findByIdAndOwnerIdFindsOnlyTheOwnersEntry() {
 		User anna = user("anna@example.com");
 		User ben = user("ben@example.com");

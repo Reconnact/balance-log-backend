@@ -8,6 +8,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -21,14 +26,21 @@ import org.springframework.web.server.ResponseStatusException;
 
 import de.htwberlin.balancelog.user.User;
 import de.htwberlin.balancelog.user.UserRepository;
+import de.htwberlin.balancelog.weight.WeightEntry;
+import de.htwberlin.balancelog.weight.WeightEntryRepository;
 
 @ExtendWith(MockitoExtension.class)
 class GoalServiceTest {
 
 	private static final UUID USER_ID = UUID.fromString("5c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f");
+	private static final Instant NOW = Instant.parse("2026-10-29T08:00:00Z");
+	private static final Instant WINDOW_START = NOW.minus(Duration.ofDays(28));
 
 	@Mock
 	private UserRepository users;
+
+	@Mock
+	private WeightEntryRepository entries;
 
 	private GoalService service;
 
@@ -36,7 +48,7 @@ class GoalServiceTest {
 
 	@BeforeEach
 	void setUp() {
-		service = new GoalService(users);
+		service = new GoalService(users, entries, Clock.fixed(NOW, ZoneOffset.UTC));
 		user = new User();
 		user.setId(USER_ID);
 	}
@@ -80,6 +92,89 @@ class GoalServiceTest {
 	}
 
 	@Test
+	void progressReturnsLatestTargetAndKgToGo() {
+		user.setGoalKg(new BigDecimal("75.0"));
+		when(users.findById(USER_ID)).thenReturn(Optional.of(user));
+		WeightEntry latest = entry("2026-10-28T06:30:00Z", "82.0");
+		when(entries.findFirstByOwnerIdOrderByMeasuredAtDesc(USER_ID)).thenReturn(Optional.of(latest));
+		when(entries.findAllInPeriod(USER_ID, WINDOW_START, null)).thenReturn(List.of(latest));
+
+		ProgressResponse progress = service.progress(USER_ID);
+
+		assertThat(progress.latestKg()).isEqualTo(new BigDecimal("82.0"));
+		assertThat(progress.targetKg()).isEqualTo(new BigDecimal("75.0"));
+		assertThat(progress.kgToGo()).isEqualTo(new BigDecimal("-7.0"));
+	}
+
+	@Test
+	void progressKgPerWeekIsTheSlopeOverTheLast28Days() {
+		user.setGoalKg(new BigDecimal("75.0"));
+		when(users.findById(USER_ID)).thenReturn(Optional.of(user));
+		List<WeightEntry> window = List.of(
+				entry("2026-10-07T07:00:00Z", "82.0"),
+				entry("2026-10-14T07:00:00Z", "81.5"),
+				entry("2026-10-21T07:00:00Z", "81.0"),
+				entry("2026-10-28T07:00:00Z", "80.5"));
+		when(entries.findFirstByOwnerIdOrderByMeasuredAtDesc(USER_ID)).thenReturn(Optional.of(window.get(3)));
+		when(entries.findAllInPeriod(USER_ID, WINDOW_START, null)).thenReturn(window);
+
+		assertThat(service.progress(USER_ID).kgPerWeek()).isEqualTo(new BigDecimal("-0.5"));
+	}
+
+	@Test
+	void progressKgPerWeekIsNullUnderTwoEntries() {
+		user.setGoalKg(new BigDecimal("75.0"));
+		when(users.findById(USER_ID)).thenReturn(Optional.of(user));
+		WeightEntry latest = entry("2026-10-28T06:30:00Z", "82.0");
+		when(entries.findFirstByOwnerIdOrderByMeasuredAtDesc(USER_ID)).thenReturn(Optional.of(latest));
+		when(entries.findAllInPeriod(USER_ID, WINDOW_START, null)).thenReturn(List.of(latest));
+
+		assertThat(service.progress(USER_ID).kgPerWeek()).isNull();
+	}
+
+	@Test
+	void progressKgPerWeekIsNullUnderSevenDaysBetweenFirstAndLast() {
+		user.setGoalKg(new BigDecimal("75.0"));
+		when(users.findById(USER_ID)).thenReturn(Optional.of(user));
+		List<WeightEntry> window = List.of(
+				entry("2026-10-22T07:00:00Z", "82.0"),
+				entry("2026-10-28T07:00:00Z", "81.0"));
+		when(entries.findFirstByOwnerIdOrderByMeasuredAtDesc(USER_ID)).thenReturn(Optional.of(window.get(1)));
+		when(entries.findAllInPeriod(USER_ID, WINDOW_START, null)).thenReturn(window);
+
+		assertThat(service.progress(USER_ID).kgPerWeek()).isNull();
+	}
+
+	@Test
+	void progressRejectsAMissingGoalWith404() {
+		when(users.findById(USER_ID)).thenReturn(Optional.of(user));
+
+		assertThatThrownBy(() -> service.progress(USER_ID))
+				.isInstanceOfSatisfying(ResponseStatusException.class,
+						e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+	}
+
+	@Test
+	void progressRejectsNoEntryWith404() {
+		user.setGoalKg(new BigDecimal("75.0"));
+		when(users.findById(USER_ID)).thenReturn(Optional.of(user));
+		when(entries.findFirstByOwnerIdOrderByMeasuredAtDesc(USER_ID)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> service.progress(USER_ID))
+				.isInstanceOfSatisfying(ResponseStatusException.class,
+						e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+	}
+
+	@Test
+	void progressRejectsAnUnknownUserWith401() {
+		when(users.findById(USER_ID)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> service.progress(USER_ID))
+				.isInstanceOfSatisfying(ResponseStatusException.class,
+						e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
+	}
+
+	@Test
 	void setRejectsAnUnknownUserWith401() {
 		when(users.findById(USER_ID)).thenReturn(Optional.empty());
 
@@ -87,6 +182,10 @@ class GoalServiceTest {
 				.isInstanceOfSatisfying(ResponseStatusException.class,
 						e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
 		verify(users, never()).save(any());
+	}
+
+	private WeightEntry entry(String measuredAt, String weightKg) {
+		return new WeightEntry(UUID.randomUUID(), user, Instant.parse(measuredAt), new BigDecimal(weightKg));
 	}
 
 }

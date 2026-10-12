@@ -68,6 +68,34 @@ class GoalControllerTest {
 	}
 
 	@Test
+	void getProgressReturnsTheProgress() throws Exception {
+		when(service.progress(USER_ID)).thenReturn(new ProgressResponse(new BigDecimal("82.0"),
+				new BigDecimal("75.0"), new BigDecimal("-7.0"), null));
+
+		mockMvc.perform(get("/progress").with(user()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.latestKg").value(82.0))
+				.andExpect(jsonPath("$.targetKg").value(75.0))
+				.andExpect(jsonPath("$.kgToGo").value(-7.0))
+				.andExpect(jsonPath("$.kgPerWeek").isEmpty());
+	}
+
+	@Test
+	void getProgressReturns404WithoutGoalOrEntry() throws Exception {
+		when(service.progress(USER_ID)).thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND));
+
+		mockMvc.perform(get("/progress").with(user()))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void getProgressReturns401WithoutToken() throws Exception {
+		mockMvc.perform(get("/progress"))
+				.andExpect(status().isUnauthorized());
+		verifyNoInteractions(service);
+	}
+
+	@Test
 	void putGoalReturns200WithTheGoal() throws Exception {
 		when(service.set(eq(USER_ID), any())).thenReturn(new GoalResponse(new BigDecimal("75.0")));
 
