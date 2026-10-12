@@ -44,7 +44,7 @@ class AuthControllerTest {
 	void registerReturns201() throws Exception {
 		when(authService.register(any())).thenReturn(new UserResponse(ID, "anna@example.com"));
 
-		mockMvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
+		mockMvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
 				.content(body("anna@example.com", "12345678")))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.id").value(ID.toString()))
@@ -55,7 +55,7 @@ class AuthControllerTest {
 	void registerReturns409ForTakenEmail() throws Exception {
 		when(authService.register(any())).thenThrow(new ResponseStatusException(HttpStatus.CONFLICT));
 
-		mockMvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
+		mockMvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
 				.content(body("anna@example.com", "12345678")))
 				.andExpect(status().isConflict());
 	}
@@ -63,7 +63,7 @@ class AuthControllerTest {
 	@ParameterizedTest(name = "{0}")
 	@MethodSource("invalidRequests")
 	void registerReturns400PerRule(String rule, String content, String field, String message) throws Exception {
-		mockMvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(content))
+		mockMvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON).content(content))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.errors." + field).value(message));
 		verifyNoInteractions(authService);
@@ -87,7 +87,7 @@ class AuthControllerTest {
 	void loginReturns200WithToken() throws Exception {
 		when(authService.login(any())).thenReturn(new TokenResponse("token", Instant.parse("2026-10-19T10:00:00Z")));
 
-		mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+		mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
 				.content(body("anna@example.com", "12345678")))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.token").value("token"))
@@ -96,7 +96,7 @@ class AuthControllerTest {
 
 	@Test
 	void loginReturns400ForInvalidBody() throws Exception {
-		mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(body("", "12345678")))
+		mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON).content(body("", "12345678")))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.errors.email").value(EMAIL_MESSAGE));
 	}
@@ -105,22 +105,22 @@ class AuthControllerTest {
 	void loginReturns401ForWrongPassword() throws Exception {
 		when(authService.login(any())).thenThrow(new ResponseStatusException(HttpStatus.UNAUTHORIZED));
 
-		mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+		mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
 				.content(body("anna@example.com", "87654321")))
 				.andExpect(status().isUnauthorized());
 	}
 
 	@Test
-	void meReturns401WithoutToken() throws Exception {
-		mockMvc.perform(get("/api/auth/me"))
+	void profileReturns401WithoutToken() throws Exception {
+		mockMvc.perform(get("/profile"))
 				.andExpect(status().isUnauthorized());
 	}
 
 	@Test
-	void meReturns200WithToken() throws Exception {
-		when(authService.me(ID)).thenReturn(new UserResponse(ID, "anna@example.com"));
+	void profileReturns200WithToken() throws Exception {
+		when(authService.profile(ID)).thenReturn(new UserResponse(ID, "anna@example.com"));
 
-		mockMvc.perform(get("/api/auth/me").with(jwt().jwt(token -> token.subject(ID.toString()))))
+		mockMvc.perform(get("/profile").with(jwt().jwt(token -> token.subject(ID.toString()))))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.id").value(ID.toString()))
 				.andExpect(jsonPath("$.email").value("anna@example.com"));

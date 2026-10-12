@@ -102,17 +102,17 @@ class AuthServiceTest {
 	}
 
 	@Test
-	void meReturnsUser() {
+	void profileReturnsUser() {
 		when(users.findById(ID)).thenReturn(Optional.of(user("12345678")));
 
-		assertThat(service.me(ID)).isEqualTo(new UserResponse(ID, "anna@example.com"));
+		assertThat(service.profile(ID)).isEqualTo(new UserResponse(ID, "anna@example.com"));
 	}
 
 	@Test
-	void meRejectsUnknownUserWith401() {
+	void profileRejectsUnknownUserWith401() {
 		when(users.findById(ID)).thenReturn(Optional.empty());
 
-		assertThatThrownBy(() -> service.me(ID))
+		assertThatThrownBy(() -> service.profile(ID))
 				.isInstanceOfSatisfying(ResponseStatusException.class,
 						e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
 	}

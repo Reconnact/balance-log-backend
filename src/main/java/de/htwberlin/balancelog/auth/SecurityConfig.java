@@ -39,8 +39,8 @@ public class SecurityConfig {
 				.csrf(csrf -> csrf.disable())
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(auth -> auth
-						.requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
-						.requestMatchers(HttpMethod.GET, "/api/weights").permitAll()
+						.requestMatchers(HttpMethod.POST, "/auth/register", "/auth/login").permitAll()
+						.requestMatchers(HttpMethod.GET, "/weight-entries").permitAll()
 						.anyRequest().authenticated())
 				.oauth2ResourceServer(resourceServer -> resourceServer.jwt(Customizer.withDefaults()));
 		return http.build();

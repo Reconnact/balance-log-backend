@@ -30,14 +30,14 @@ class WeightEntryControllerTest {
 	private WeightEntryService service;
 
 	@Test
-	void getWeightsReturnsEntries() throws Exception {
+	void getWeightEntriesReturnsEntries() throws Exception {
 		when(service.findAll()).thenReturn(List.of(
 				new WeightEntry(UUID.fromString("3f2b8c1e-6d4a-4f7e-9b2a-1c5d8e0f4a71"),
 						Instant.parse("2026-10-01T06:30:00Z"), new BigDecimal("82.4")),
 				new WeightEntry(UUID.fromString("a9e47d20-1b6c-4c3f-8e5d-7f2a9b0c6d13"),
 						Instant.parse("2026-10-03T06:45:00Z"), new BigDecimal("82.1"))));
 
-		mockMvc.perform(get("/api/weights"))
+		mockMvc.perform(get("/weight-entries"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.length()").value(2))
 				.andExpect(jsonPath("$[0].id").value("3f2b8c1e-6d4a-4f7e-9b2a-1c5d8e0f4a71"))

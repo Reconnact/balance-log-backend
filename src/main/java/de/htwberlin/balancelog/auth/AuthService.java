@@ -43,7 +43,7 @@ public class AuthService {
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Wrong email or password."));
 	}
 
-	public UserResponse me(UUID id) {
+	public UserResponse profile(UUID id) {
 		return users.findById(id)
 				.map(user -> new UserResponse(user.getId(), user.getEmail()))
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));

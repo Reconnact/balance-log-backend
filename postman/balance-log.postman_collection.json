@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Balance Log",
-    "description": "Run against ./gradlew bootRun, top to bottom. Login stores the token for Me.",
+    "description": "Run against ./gradlew bootRun, top to bottom. Login stores the token for Profile.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -12,7 +12,7 @@
   ],
   "item": [
     {
-      "name": "Weights - list sample entries",
+      "name": "Weight entries - list sample entries",
       "event": [
         {
           "listen": "test",
@@ -27,7 +27,7 @@
       ],
       "request": {
         "method": "GET",
-        "url": "{{baseUrl}}/api/weights"
+        "url": "{{baseUrl}}/weight-entries"
       }
     },
     {
@@ -51,7 +51,7 @@
           "mode": "raw",
           "raw": "{\n  \"email\": \"Test@Example.com\",\n  \"password\": \"{{password}}\"\n}"
         },
-        "url": "{{baseUrl}}/api/auth/register"
+        "url": "{{baseUrl}}/auth/register"
       }
     },
     {
@@ -72,7 +72,7 @@
           "mode": "raw",
           "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
         },
-        "url": "{{baseUrl}}/api/auth/register"
+        "url": "{{baseUrl}}/auth/register"
       }
     },
     {
@@ -100,7 +100,7 @@
           "mode": "raw",
           "raw": "{\n  \"email\": \"anna\",\n  \"password\": \"1234567\"\n}"
         },
-        "url": "{{baseUrl}}/api/auth/register"
+        "url": "{{baseUrl}}/auth/register"
       }
     },
     {
@@ -124,7 +124,7 @@
           "mode": "raw",
           "raw": "{\n  \"email\": \"umlaut@example.com\",\n  \"password\": \"äääääääääääääääääääääääääääääääääääää\"\n}"
         },
-        "url": "{{baseUrl}}/api/auth/register"
+        "url": "{{baseUrl}}/auth/register"
       }
     },
     {
@@ -148,7 +148,7 @@
           "mode": "raw",
           "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
         },
-        "url": "{{baseUrl}}/api/auth/login"
+        "url": "{{baseUrl}}/auth/login"
       }
     },
     {
@@ -169,11 +169,11 @@
           "mode": "raw",
           "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"wrongpass\"\n}"
         },
-        "url": "{{baseUrl}}/api/auth/login"
+        "url": "{{baseUrl}}/auth/login"
       }
     },
     {
-      "name": "Me",
+      "name": "Profile",
       "event": [
         {
           "listen": "test",
@@ -192,11 +192,11 @@
           "type": "bearer",
           "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
         },
-        "url": "{{baseUrl}}/api/auth/me"
+        "url": "{{baseUrl}}/profile"
       }
     },
     {
-      "name": "Me - without token (401)",
+      "name": "Profile - without token (401)",
       "event": [
         {
           "listen": "test",
@@ -209,7 +209,7 @@
       "request": {
         "method": "GET",
         "auth": { "type": "noauth" },
-        "url": "{{baseUrl}}/api/auth/me"
+        "url": "{{baseUrl}}/profile"
       }
     }
   ]
