@@ -41,6 +41,14 @@ public class WeightEntryService {
 		return toResponse(entries.save(new WeightEntry(null, owner, measuredAt, request.weightKg())));
 	}
 
+	public WeightEntryResponse update(UUID id, UUID ownerId, WeightEntryUpdateRequest request) {
+		WeightEntry entry = entries.findByIdAndOwnerId(id, ownerId)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+		entry.setMeasuredAt(request.measuredAt());
+		entry.setWeightKg(request.weightKg());
+		return toResponse(entries.save(entry));
+	}
+
 	private static WeightEntryResponse toResponse(WeightEntry entry) {
 		return new WeightEntryResponse(entry.getId(), entry.getMeasuredAt(), entry.getWeightKg());
 	}

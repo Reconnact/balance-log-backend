@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -41,6 +42,7 @@ class WeightEntryControllerTest {
 	private static final UUID ENTRY_ID = UUID.fromString("3f2b8c1e-6d4a-4f7e-9b2a-1c5d8e0f4a71");
 	private static final String WEIGHT_MESSAGE = "Between 20 and 400 kg, one decimal.";
 	private static final String MEASURED_AT_MESSAGE = "Can't be in the future.";
+	private static final String MEASURED_AT_MISSING_MESSAGE = "Enter a time.";
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -145,6 +147,53 @@ class WeightEntryControllerTest {
 	void postWeightEntryReturns401WithoutToken() throws Exception {
 		mockMvc.perform(post("/weight-entries").contentType(MediaType.APPLICATION_JSON)
 				.content(body("2026-10-01T06:30:00Z", "82.4")))
+				.andExpect(status().isUnauthorized());
+		verifyNoInteractions(service);
+	}
+
+	@Test
+	void putWeightEntryReturns200WithTheEntry() throws Exception {
+		when(service.update(eq(ENTRY_ID), eq(OWNER_ID), any())).thenReturn(
+				new WeightEntryResponse(ENTRY_ID, Instant.parse("2026-10-02T07:00:00Z"), new BigDecimal("81.9")));
+
+		mockMvc.perform(put("/weight-entries/{id}", ENTRY_ID).with(owner()).contentType(MediaType.APPLICATION_JSON)
+				.content(body("2026-10-02T07:00:00Z", "81.9")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(ENTRY_ID.toString()))
+				.andExpect(jsonPath("$.measuredAt").value("2026-10-02T07:00:00Z"))
+				.andExpect(jsonPath("$.weightKg").value(81.9));
+	}
+
+	@Test
+	void putWeightEntryReturns404ForAForeignId() throws Exception {
+		when(service.update(eq(ENTRY_ID), eq(OWNER_ID), any()))
+				.thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND));
+
+		mockMvc.perform(put("/weight-entries/{id}", ENTRY_ID).with(owner()).contentType(MediaType.APPLICATION_JSON)
+				.content(body("2026-10-02T07:00:00Z", "81.9")))
+				.andExpect(status().isNotFound());
+	}
+
+	@ParameterizedTest(name = "{0}")
+	@MethodSource("invalidUpdates")
+	void putWeightEntryReturns400PerRule(String rule, String content, String field, String message)
+			throws Exception {
+		mockMvc.perform(put("/weight-entries/{id}", ENTRY_ID).with(owner()).contentType(MediaType.APPLICATION_JSON)
+				.content(content))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errors." + field).value(message));
+		verifyNoInteractions(service);
+	}
+
+	static Stream<Arguments> invalidUpdates() {
+		return Stream.concat(invalidRequests(), Stream.of(
+				Arguments.of("measuredAt missing", "{\"weightKg\":82.4}", "measuredAt", MEASURED_AT_MISSING_MESSAGE)));
+	}
+
+	@Test
+	void putWeightEntryReturns401WithoutToken() throws Exception {
+		mockMvc.perform(put("/weight-entries/{id}", ENTRY_ID).contentType(MediaType.APPLICATION_JSON)
+				.content(body("2026-10-02T07:00:00Z", "81.9")))
 				.andExpect(status().isUnauthorized());
 		verifyNoInteractions(service);
 	}

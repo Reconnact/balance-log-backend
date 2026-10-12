@@ -76,6 +76,33 @@ class WeightEntryServiceTest {
 	}
 
 	@Test
+	void updateChangesTheOwnersEntry() {
+		when(entries.findByIdAndOwnerId(ENTRY_ID, OWNER_ID)).thenReturn(Optional.of(
+				new WeightEntry(ENTRY_ID, owner, Instant.parse("2026-10-01T06:30:00Z"), new BigDecimal("82.4"))));
+		when(entries.save(any(WeightEntry.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+		WeightEntryResponse response = service.update(ENTRY_ID, OWNER_ID,
+				new WeightEntryUpdateRequest(Instant.parse("2026-10-02T07:00:00Z"), new BigDecimal("81.9")));
+
+		ArgumentCaptor<WeightEntry> saved = ArgumentCaptor.forClass(WeightEntry.class);
+		verify(entries).save(saved.capture());
+		assertThat(saved.getValue().getOwner()).isSameAs(owner);
+		assertThat(response).isEqualTo(
+				new WeightEntryResponse(ENTRY_ID, Instant.parse("2026-10-02T07:00:00Z"), new BigDecimal("81.9")));
+	}
+
+	@Test
+	void updateRejectsAForeignOrMissingEntryWith404() {
+		when(entries.findByIdAndOwnerId(ENTRY_ID, OWNER_ID)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> service.update(ENTRY_ID, OWNER_ID,
+				new WeightEntryUpdateRequest(Instant.parse("2026-10-02T07:00:00Z"), new BigDecimal("81.9"))))
+				.isInstanceOfSatisfying(ResponseStatusException.class,
+						e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+		verify(entries, never()).save(any());
+	}
+
+	@Test
 	void createSavesTheEntryForTheOwner() {
 		when(users.findById(OWNER_ID)).thenReturn(Optional.of(owner));
 		when(entries.save(any(WeightEntry.class))).thenAnswer(invocation -> {

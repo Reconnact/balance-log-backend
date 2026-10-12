@@ -353,6 +353,89 @@
       }
     },
     {
+      "name": "Weight entries - edit",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200', () => pm.response.to.have.status(200));",
+              "pm.test('new weight', () => pm.expect(pm.response.json().weightKg).to.eql(81.9));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"measuredAt\": \"2026-10-02T07:00:00Z\",\n  \"weightKg\": 81.9\n}"
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+        },
+        "url": "{{baseUrl}}/weight-entries/{{entryId}}"
+      }
+    },
+    {
+      "name": "Weight entries - edit without a time (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('400', () => pm.response.to.have.status(400));",
+              "pm.test('time message', () => pm.expect(pm.response.json().errors.measuredAt).to.eql('Enter a time.'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"weightKg\": 81.9\n}"
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+        },
+        "url": "{{baseUrl}}/weight-entries/{{entryId}}"
+      }
+    },
+    {
+      "name": "Weight entries - edit unknown id (404)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('404', () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"measuredAt\": \"2026-10-02T07:00:00Z\",\n  \"weightKg\": 81.9\n}"
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+        },
+        "url": "{{baseUrl}}/weight-entries/00000000-0000-0000-0000-000000000000"
+      }
+    },
+    {
       "name": "Weight entries - list",
       "event": [
         {

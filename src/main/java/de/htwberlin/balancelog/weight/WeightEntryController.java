@@ -10,6 +10,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -41,6 +42,12 @@ public class WeightEntryController {
 			@AuthenticationPrincipal Jwt jwt) {
 		WeightEntryResponse created = service.create(ownerId(jwt), request);
 		return ResponseEntity.created(URI.create("/weight-entries/" + created.id())).body(created);
+	}
+
+	@PutMapping("/{id}")
+	public WeightEntryResponse update(@PathVariable UUID id, @Valid @RequestBody WeightEntryUpdateRequest request,
+			@AuthenticationPrincipal Jwt jwt) {
+		return service.update(id, ownerId(jwt), request);
 	}
 
 	private static UUID ownerId(Jwt jwt) {
