@@ -2,6 +2,7 @@ package de.htwberlin.balancelog.auth;
 
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
+import java.util.List;
 
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
@@ -21,6 +22,9 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
 public class SecurityConfig {
@@ -36,6 +40,7 @@ public class SecurityConfig {
 	@Bean
 	SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 		http
+				.cors(Customizer.withDefaults())
 				.csrf(csrf -> csrf.disable())
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(auth -> auth
@@ -44,6 +49,19 @@ public class SecurityConfig {
 						.anyRequest().authenticated())
 				.oauth2ResourceServer(resourceServer -> resourceServer.jwt(Customizer.withDefaults()));
 		return http.build();
+	}
+
+	@Bean
+	CorsConfigurationSource corsConfigurationSource(
+			@Value("${ALLOWED_ORIGINS:http://localhost:5173}") List<String> allowedOrigins) {
+		CorsConfiguration cors = new CorsConfiguration();
+		cors.setAllowedOrigins(allowedOrigins);
+		cors.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
+		cors.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+
+		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+		source.registerCorsConfiguration("/**", cors);
+		return source;
 	}
 
 	@Bean
