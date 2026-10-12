@@ -103,6 +103,26 @@ class WeightEntryServiceTest {
 	}
 
 	@Test
+	void deleteRemovesTheOwnersEntry() {
+		WeightEntry entry = new WeightEntry(ENTRY_ID, owner, Instant.parse("2026-10-01T06:30:00Z"), new BigDecimal("82.4"));
+		when(entries.findByIdAndOwnerId(ENTRY_ID, OWNER_ID)).thenReturn(Optional.of(entry));
+
+		service.delete(ENTRY_ID, OWNER_ID);
+
+		verify(entries).delete(entry);
+	}
+
+	@Test
+	void deleteRejectsAForeignOrMissingEntryWith404() {
+		when(entries.findByIdAndOwnerId(ENTRY_ID, OWNER_ID)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> service.delete(ENTRY_ID, OWNER_ID))
+				.isInstanceOfSatisfying(ResponseStatusException.class,
+						e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+		verify(entries, never()).delete(any());
+	}
+
+	@Test
 	void createSavesTheEntryForTheOwner() {
 		when(users.findById(OWNER_ID)).thenReturn(Optional.of(owner));
 		when(entries.save(any(WeightEntry.class))).thenAnswer(invocation -> {

@@ -2,9 +2,12 @@ package de.htwberlin.balancelog.weight;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -194,6 +197,28 @@ class WeightEntryControllerTest {
 	void putWeightEntryReturns401WithoutToken() throws Exception {
 		mockMvc.perform(put("/weight-entries/{id}", ENTRY_ID).contentType(MediaType.APPLICATION_JSON)
 				.content(body("2026-10-02T07:00:00Z", "81.9")))
+				.andExpect(status().isUnauthorized());
+		verifyNoInteractions(service);
+	}
+
+	@Test
+	void deleteWeightEntryReturns204() throws Exception {
+		mockMvc.perform(delete("/weight-entries/{id}", ENTRY_ID).with(owner()))
+				.andExpect(status().isNoContent());
+		verify(service).delete(ENTRY_ID, OWNER_ID);
+	}
+
+	@Test
+	void deleteWeightEntryReturns404ForAForeignId() throws Exception {
+		doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND)).when(service).delete(ENTRY_ID, OWNER_ID);
+
+		mockMvc.perform(delete("/weight-entries/{id}", ENTRY_ID).with(owner()))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void deleteWeightEntryReturns401WithoutToken() throws Exception {
+		mockMvc.perform(delete("/weight-entries/{id}", ENTRY_ID))
 				.andExpect(status().isUnauthorized());
 		verifyNoInteractions(service);
 	}

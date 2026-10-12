@@ -49,6 +49,12 @@ public class WeightEntryService {
 		return toResponse(entries.save(entry));
 	}
 
+	public void delete(UUID id, UUID ownerId) {
+		WeightEntry entry = entries.findByIdAndOwnerId(id, ownerId)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+		entries.delete(entry);
+	}
+
 	private static WeightEntryResponse toResponse(WeightEntry entry) {
 		return new WeightEntryResponse(entry.getId(), entry.getMeasuredAt(), entry.getWeightKg());
 	}
