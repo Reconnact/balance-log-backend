@@ -1,35 +1,17 @@
 {
   "info": {
     "name": "Balance Log",
-    "description": "Run against ./gradlew bootRun, top to bottom. Login stores the token for Profile.",
+    "description": "Run against ./gradlew bootRun, top to bottom. Login stores the token for every route behind it.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:8080" },
     { "key": "email", "value": "test@example.com" },
     { "key": "password", "value": "12345678" },
-    { "key": "token", "value": "" }
+    { "key": "token", "value": "" },
+    { "key": "entryId", "value": "" }
   ],
   "item": [
-    {
-      "name": "Weight entries - list sample entries",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('200', () => pm.response.to.have.status(200));",
-              "pm.test('5 entries', () => pm.expect(pm.response.json()).to.have.lengthOf(5));"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "GET",
-        "url": "{{baseUrl}}/weight-entries"
-      }
-    },
     {
       "name": "Register",
       "event": [
@@ -210,6 +192,207 @@
         "method": "GET",
         "auth": { "type": "noauth" },
         "url": "{{baseUrl}}/profile"
+      }
+    },
+    {
+      "name": "Weight entries - log",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('201', () => pm.response.to.have.status(201));",
+              "pm.test('Location', () => pm.expect(pm.response.headers.get('Location')).to.eql('/weight-entries/' + pm.response.json().id));",
+              "pm.collectionVariables.set('entryId', pm.response.json().id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"measuredAt\": \"2026-10-01T06:30:00Z\",\n  \"weightKg\": 82.4\n}"
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+        },
+        "url": "{{baseUrl}}/weight-entries"
+      }
+    },
+    {
+      "name": "Weight entries - log without a time",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('201', () => pm.response.to.have.status(201));",
+              "pm.test('server sets the time', () => pm.expect(pm.response.json().measuredAt).to.be.a('string'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"weightKg\": 82.1\n}"
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+        },
+        "url": "{{baseUrl}}/weight-entries"
+      }
+    },
+    {
+      "name": "Weight entries - log under 20 kg (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('400', () => pm.response.to.have.status(400));",
+              "pm.test('weight message', () => pm.expect(pm.response.json().errors.weightKg).to.eql('Between 20 and 400 kg, one decimal.'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"weightKg\": 19.9\n}"
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+        },
+        "url": "{{baseUrl}}/weight-entries"
+      }
+    },
+    {
+      "name": "Weight entries - log in the future (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('400', () => pm.response.to.have.status(400));",
+              "pm.test('time message', () => pm.expect(pm.response.json().errors.measuredAt).to.eql(\"Can't be in the future.\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"measuredAt\": \"2999-01-01T00:00:00Z\",\n  \"weightKg\": 82.4\n}"
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+        },
+        "url": "{{baseUrl}}/weight-entries"
+      }
+    },
+    {
+      "name": "Weight entries - read by id",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200', () => pm.response.to.have.status(200));",
+              "pm.test('logged weight', () => pm.expect(pm.response.json().weightKg).to.eql(82.4));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+        },
+        "url": "{{baseUrl}}/weight-entries/{{entryId}}"
+      }
+    },
+    {
+      "name": "Weight entries - read unknown id (404)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('404', () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+        },
+        "url": "{{baseUrl}}/weight-entries/00000000-0000-0000-0000-000000000000"
+      }
+    },
+    {
+      "name": "Weight entries - list",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200', () => pm.response.to.have.status(200));",
+              "pm.test('has the logged entry', () => pm.expect(pm.response.json().map(e => e.id)).to.include(pm.collectionVariables.get('entryId')));",
+              "pm.test('oldest first', () => { const times = pm.response.json().map(e => Date.parse(e.measuredAt)); pm.expect(times).to.eql([...times].sort((a, b) => a - b)); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+        },
+        "url": "{{baseUrl}}/weight-entries"
+      }
+    },
+    {
+      "name": "Weight entries - list without token (401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('401', () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": { "type": "noauth" },
+        "url": "{{baseUrl}}/weight-entries"
       }
     }
   ]
