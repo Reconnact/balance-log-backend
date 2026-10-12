@@ -1,12 +1,13 @@
 {
   "info": {
     "name": "Balance Log",
-    "description": "Run against ./gradlew bootRun, top to bottom. Login stores the token for every route behind it.",
+    "description": "Run against ./gradlew bootRun, top to bottom. Register creates a new user per run, Login stores the token for every route behind it.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:8080" },
-    { "key": "email", "value": "test@example.com" },
+    { "key": "email", "value": "" },
+    { "key": "emailMixedCase", "value": "" },
     { "key": "password", "value": "12345678" },
     { "key": "token", "value": "" },
     { "key": "entryId", "value": "" }
@@ -15,6 +16,17 @@
     {
       "name": "Register",
       "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const id = Date.now();",
+              "pm.collectionVariables.set('email', `test-${id}@example.com`);",
+              "pm.collectionVariables.set('emailMixedCase', `Test-${id}@Example.com`);"
+            ]
+          }
+        },
         {
           "listen": "test",
           "script": {
@@ -31,7 +43,7 @@
         "header": [{ "key": "Content-Type", "value": "application/json" }],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"email\": \"Test@Example.com\",\n  \"password\": \"{{password}}\"\n}"
+          "raw": "{\n  \"email\": \"{{emailMixedCase}}\",\n  \"password\": \"{{password}}\"\n}"
         },
         "url": "{{baseUrl}}/auth/register"
       }
@@ -634,6 +646,126 @@
         "method": "GET",
         "auth": { "type": "noauth" },
         "url": "{{baseUrl}}/weight-entries"
+      }
+    },
+    {
+      "name": "Goal - none set (404)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('404', () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+        },
+        "url": "{{baseUrl}}/goal"
+      }
+    },
+    {
+      "name": "Goal - set",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200', () => pm.response.to.have.status(200));",
+              "pm.test('target', () => pm.expect(pm.response.json().targetKg).to.eql(75));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"targetKg\": 75.0\n}"
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+        },
+        "url": "{{baseUrl}}/goal"
+      }
+    },
+    {
+      "name": "Goal - set with two decimals (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('400', () => pm.response.to.have.status(400));",
+              "pm.test('target message', () => pm.expect(pm.response.json().errors.targetKg).to.eql('Between 20 and 400 kg, one decimal.'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"targetKg\": 75.05\n}"
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+        },
+        "url": "{{baseUrl}}/goal"
+      }
+    },
+    {
+      "name": "Goal - read",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200', () => pm.response.to.have.status(200));",
+              "pm.test('target', () => pm.expect(pm.response.json().targetKg).to.eql(75));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+        },
+        "url": "{{baseUrl}}/goal"
+      }
+    },
+    {
+      "name": "Goal - without token (401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('401', () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": { "type": "noauth" },
+        "url": "{{baseUrl}}/goal"
       }
     }
   ]

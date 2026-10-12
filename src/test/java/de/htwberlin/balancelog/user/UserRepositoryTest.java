@@ -3,6 +3,8 @@ package de.htwberlin.balancelog.user;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.math.BigDecimal;
+
 import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +36,18 @@ class UserRepositoryTest {
 					assertThat(found.getPasswordHash()).isEqualTo("hash");
 					assertThat(found.getCreatedAt()).isNotNull();
 				});
+	}
+
+	@Test
+	void goalKgIsStoredWithOneDecimal() {
+		User user = user("anna@example.com");
+		user.setGoalKg(new BigDecimal("75.0"));
+		User saved = repository.save(user);
+		entityManager.flush();
+		entityManager.clear();
+
+		assertThat(repository.findById(saved.getId()))
+				.hasValueSatisfying(found -> assertThat(found.getGoalKg()).isEqualTo(new BigDecimal("75.0")));
 	}
 
 	@Test

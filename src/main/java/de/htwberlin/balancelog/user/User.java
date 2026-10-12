@@ -1,5 +1,6 @@
 package de.htwberlin.balancelog.user;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -33,5 +34,8 @@ public class User {
 
 	@CreationTimestamp
 	private Instant createdAt;
+
+	@Column(precision = 4, scale = 1)
+	private BigDecimal goalKg;
 
 }
