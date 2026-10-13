@@ -43,4 +43,9 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	environment 'JWT_SECRET', 'test-secret-at-least-32-bytes-long'
+}
+
+tasks.named('bootRun') {
+	environment 'JWT_SECRET', 'local-secret-at-least-32-bytes-long'
 }

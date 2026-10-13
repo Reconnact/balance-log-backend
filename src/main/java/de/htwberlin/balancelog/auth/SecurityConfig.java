@@ -1,10 +1,8 @@
 package de.htwberlin.balancelog.auth;
 
 import java.nio.charset.StandardCharsets;
-import java.security.NoSuchAlgorithmException;
 import java.util.List;
 
-import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -31,10 +29,8 @@ public class SecurityConfig {
 
 	private final SecretKey key;
 
-	public SecurityConfig(@Value("${JWT_SECRET:}") String secret) throws NoSuchAlgorithmException {
-		this.key = secret.isBlank()
-				? KeyGenerator.getInstance("HmacSHA256").generateKey()
-				: new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+	public SecurityConfig(@Value("${JWT_SECRET}") String secret) {
+		this.key = new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
 	}
 
 	@Bean
