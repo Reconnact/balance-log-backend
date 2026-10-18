@@ -14,25 +14,25 @@ import jakarta.validation.Valid;
 @RestController
 public class GoalController {
 
-	private final GoalService service;
+	private final GoalService goalService;
 
-	public GoalController(GoalService service) {
-		this.service = service;
+	public GoalController(GoalService goalService) {
+		this.goalService = goalService;
 	}
 
 	@GetMapping("/goal")
-	public GoalResponse get(@AuthenticationPrincipal Jwt jwt) {
-		return service.get(UUID.fromString(jwt.getSubject()));
+	public GoalResponse getGoal(@AuthenticationPrincipal Jwt jwt) {
+		return goalService.getGoal(UUID.fromString(jwt.getSubject()));
 	}
 
 	@GetMapping("/progress")
-	public ProgressResponse progress(@AuthenticationPrincipal Jwt jwt) {
-		return service.progress(UUID.fromString(jwt.getSubject()));
+	public ProgressResponse getProgress(@AuthenticationPrincipal Jwt jwt) {
+		return goalService.getProgress(UUID.fromString(jwt.getSubject()));
 	}
 
 	@PutMapping("/goal")
-	public GoalResponse set(@Valid @RequestBody GoalRequest request, @AuthenticationPrincipal Jwt jwt) {
-		return service.set(UUID.fromString(jwt.getSubject()), request);
+	public GoalResponse setGoal(@Valid @RequestBody SetGoalRequest request, @AuthenticationPrincipal Jwt jwt) {
+		return goalService.setGoal(UUID.fromString(jwt.getSubject()), request);
 	}
 
 }

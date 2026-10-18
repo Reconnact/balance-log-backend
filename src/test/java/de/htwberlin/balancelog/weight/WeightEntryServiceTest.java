@@ -29,75 +29,75 @@ import de.htwberlin.balancelog.user.UserRepository;
 @ExtendWith(MockitoExtension.class)
 class WeightEntryServiceTest {
 
-	private static final UUID OWNER_ID = UUID.fromString("5c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f");
+	private static final UUID USER_ID = UUID.fromString("5c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f");
 	private static final UUID ENTRY_ID = UUID.fromString("3f2b8c1e-6d4a-4f7e-9b2a-1c5d8e0f4a71");
 
 	@Mock
-	private WeightEntryRepository entries;
+	private WeightEntryRepository weightEntryRepository;
 
 	@Mock
-	private UserRepository users;
+	private UserRepository userRepository;
 
-	private WeightEntryService service;
+	private WeightEntryService weightEntryService;
 
 	private User owner;
 
 	@BeforeEach
 	void setUp() {
-		service = new WeightEntryService(entries, users);
+		weightEntryService = new WeightEntryService(weightEntryRepository, userRepository);
 		owner = new User();
-		owner.setId(OWNER_ID);
+		owner.setId(USER_ID);
 	}
 
 	@Test
 	void findAllReturnsTheOwnersEntries() {
 		Instant from = Instant.parse("2026-09-01T00:00:00Z");
 		Instant to = Instant.parse("2026-10-31T00:00:00Z");
-		when(entries.findAllInPeriod(OWNER_ID, from, to)).thenReturn(List.of(
+		when(weightEntryRepository.findAllInPeriod(USER_ID, from, to)).thenReturn(List.of(
 				new WeightEntry(ENTRY_ID, owner, Instant.parse("2026-10-01T06:30:00Z"), new BigDecimal("82.4"))));
 
-		assertThat(service.findAll(OWNER_ID, from, to)).containsExactly(
+		assertThat(weightEntryService.listWeightEntries(USER_ID, from, to)).containsExactly(
 				new WeightEntryResponse(ENTRY_ID, Instant.parse("2026-10-01T06:30:00Z"), new BigDecimal("82.4")));
 	}
 
 	@Test
 	void findAllRejectsFromAfterToWith400() {
-		assertThatThrownBy(() -> service.findAll(OWNER_ID, Instant.parse("2026-10-31T00:00:00Z"),
+		assertThatThrownBy(() -> weightEntryService.listWeightEntries(USER_ID, Instant.parse("2026-10-31T00:00:00Z"),
 				Instant.parse("2026-09-01T00:00:00Z")))
 				.isInstanceOfSatisfying(ResponseStatusException.class,
 						e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
-		verifyNoInteractions(entries);
+		verifyNoInteractions(weightEntryRepository);
 	}
 
 	@Test
 	void findByIdReturnsTheOwnersEntry() {
-		when(entries.findByIdAndOwnerId(ENTRY_ID, OWNER_ID)).thenReturn(Optional.of(
+		when(weightEntryRepository.findByIdAndOwnerId(ENTRY_ID, USER_ID)).thenReturn(Optional.of(
 				new WeightEntry(ENTRY_ID, owner, Instant.parse("2026-10-01T06:30:00Z"), new BigDecimal("82.4"))));
 
-		assertThat(service.findById(ENTRY_ID, OWNER_ID)).isEqualTo(
+		assertThat(weightEntryService.getWeightEntry(USER_ID, ENTRY_ID)).isEqualTo(
 				new WeightEntryResponse(ENTRY_ID, Instant.parse("2026-10-01T06:30:00Z"), new BigDecimal("82.4")));
 	}
 
 	@Test
 	void findByIdRejectsAForeignOrMissingEntryWith404() {
-		when(entries.findByIdAndOwnerId(ENTRY_ID, OWNER_ID)).thenReturn(Optional.empty());
+		when(weightEntryRepository.findByIdAndOwnerId(ENTRY_ID, USER_ID)).thenReturn(Optional.empty());
 
-		assertThatThrownBy(() -> service.findById(ENTRY_ID, OWNER_ID))
+		assertThatThrownBy(() -> weightEntryService.getWeightEntry(USER_ID, ENTRY_ID))
 				.isInstanceOfSatisfying(ResponseStatusException.class,
 						e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
 	}
 
 	@Test
 	void updateChangesTheOwnersEntry() {
-		when(entries.findByIdAndOwnerId(ENTRY_ID, OWNER_ID)).thenReturn(Optional.of(
+		when(weightEntryRepository.findByIdAndOwnerId(ENTRY_ID, USER_ID)).thenReturn(Optional.of(
 				new WeightEntry(ENTRY_ID, owner, Instant.parse("2026-10-01T06:30:00Z"), new BigDecimal("82.4"))));
-		when(entries.save(any(WeightEntry.class))).thenAnswer(invocation -> invocation.getArgument(0));
+		when(weightEntryRepository.save(any(WeightEntry.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-		WeightEntryResponse response = service.update(ENTRY_ID, OWNER_ID,
-				new WeightEntryUpdateRequest(Instant.parse("2026-10-02T07:00:00Z"), new BigDecimal("81.9")));
+		WeightEntryResponse response = weightEntryService.updateWeightEntry(USER_ID, ENTRY_ID,
+				new UpdateWeightEntryRequest(Instant.parse("2026-10-02T07:00:00Z"), new BigDecimal("81.9")));
 
 		ArgumentCaptor<WeightEntry> saved = ArgumentCaptor.forClass(WeightEntry.class);
-		verify(entries).save(saved.capture());
+		verify(weightEntryRepository).save(saved.capture());
 		assertThat(saved.getValue().getOwner()).isSameAs(owner);
 		assertThat(response).isEqualTo(
 				new WeightEntryResponse(ENTRY_ID, Instant.parse("2026-10-02T07:00:00Z"), new BigDecimal("81.9")));
@@ -105,49 +105,49 @@ class WeightEntryServiceTest {
 
 	@Test
 	void updateRejectsAForeignOrMissingEntryWith404() {
-		when(entries.findByIdAndOwnerId(ENTRY_ID, OWNER_ID)).thenReturn(Optional.empty());
+		when(weightEntryRepository.findByIdAndOwnerId(ENTRY_ID, USER_ID)).thenReturn(Optional.empty());
 
-		assertThatThrownBy(() -> service.update(ENTRY_ID, OWNER_ID,
-				new WeightEntryUpdateRequest(Instant.parse("2026-10-02T07:00:00Z"), new BigDecimal("81.9"))))
+		assertThatThrownBy(() -> weightEntryService.updateWeightEntry(USER_ID, ENTRY_ID,
+				new UpdateWeightEntryRequest(Instant.parse("2026-10-02T07:00:00Z"), new BigDecimal("81.9"))))
 				.isInstanceOfSatisfying(ResponseStatusException.class,
 						e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
-		verify(entries, never()).save(any());
+		verify(weightEntryRepository, never()).save(any());
 	}
 
 	@Test
 	void deleteRemovesTheOwnersEntry() {
 		WeightEntry entry = new WeightEntry(ENTRY_ID, owner, Instant.parse("2026-10-01T06:30:00Z"), new BigDecimal("82.4"));
-		when(entries.findByIdAndOwnerId(ENTRY_ID, OWNER_ID)).thenReturn(Optional.of(entry));
+		when(weightEntryRepository.findByIdAndOwnerId(ENTRY_ID, USER_ID)).thenReturn(Optional.of(entry));
 
-		service.delete(ENTRY_ID, OWNER_ID);
+		weightEntryService.deleteWeightEntry(USER_ID, ENTRY_ID);
 
-		verify(entries).delete(entry);
+		verify(weightEntryRepository).delete(entry);
 	}
 
 	@Test
 	void deleteRejectsAForeignOrMissingEntryWith404() {
-		when(entries.findByIdAndOwnerId(ENTRY_ID, OWNER_ID)).thenReturn(Optional.empty());
+		when(weightEntryRepository.findByIdAndOwnerId(ENTRY_ID, USER_ID)).thenReturn(Optional.empty());
 
-		assertThatThrownBy(() -> service.delete(ENTRY_ID, OWNER_ID))
+		assertThatThrownBy(() -> weightEntryService.deleteWeightEntry(USER_ID, ENTRY_ID))
 				.isInstanceOfSatisfying(ResponseStatusException.class,
 						e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
-		verify(entries, never()).delete(any());
+		verify(weightEntryRepository, never()).delete(any());
 	}
 
 	@Test
 	void createSavesTheEntryForTheOwner() {
-		when(users.findById(OWNER_ID)).thenReturn(Optional.of(owner));
-		when(entries.save(any(WeightEntry.class))).thenAnswer(invocation -> {
+		when(userRepository.findById(USER_ID)).thenReturn(Optional.of(owner));
+		when(weightEntryRepository.save(any(WeightEntry.class))).thenAnswer(invocation -> {
 			WeightEntry entry = invocation.getArgument(0);
 			entry.setId(ENTRY_ID);
 			return entry;
 		});
 
-		WeightEntryResponse response = service.create(OWNER_ID,
-				new WeightEntryRequest(Instant.parse("2026-10-01T06:30:00Z"), new BigDecimal("82.4")));
+		WeightEntryResponse response = weightEntryService.createWeightEntry(USER_ID,
+				new CreateWeightEntryRequest(Instant.parse("2026-10-01T06:30:00Z"), new BigDecimal("82.4")));
 
 		ArgumentCaptor<WeightEntry> saved = ArgumentCaptor.forClass(WeightEntry.class);
-		verify(entries).save(saved.capture());
+		verify(weightEntryRepository).save(saved.capture());
 		assertThat(saved.getValue().getOwner()).isSameAs(owner);
 		assertThat(response).isEqualTo(
 				new WeightEntryResponse(ENTRY_ID, Instant.parse("2026-10-01T06:30:00Z"), new BigDecimal("82.4")));
@@ -155,23 +155,23 @@ class WeightEntryServiceTest {
 
 	@Test
 	void createUsesNowWhenMeasuredAtIsMissing() {
-		when(users.findById(OWNER_ID)).thenReturn(Optional.of(owner));
-		when(entries.save(any(WeightEntry.class))).thenAnswer(invocation -> invocation.getArgument(0));
+		when(userRepository.findById(USER_ID)).thenReturn(Optional.of(owner));
+		when(weightEntryRepository.save(any(WeightEntry.class))).thenAnswer(invocation -> invocation.getArgument(0));
 		Instant before = Instant.now();
 
-		WeightEntryResponse response = service.create(OWNER_ID, new WeightEntryRequest(null, new BigDecimal("82.4")));
+		WeightEntryResponse response = weightEntryService.createWeightEntry(USER_ID, new CreateWeightEntryRequest(null, new BigDecimal("82.4")));
 
 		assertThat(response.measuredAt()).isBetween(before, Instant.now());
 	}
 
 	@Test
 	void createRejectsAnUnknownOwnerWith401() {
-		when(users.findById(OWNER_ID)).thenReturn(Optional.empty());
+		when(userRepository.findById(USER_ID)).thenReturn(Optional.empty());
 
-		assertThatThrownBy(() -> service.create(OWNER_ID, new WeightEntryRequest(null, new BigDecimal("82.4"))))
+		assertThatThrownBy(() -> weightEntryService.createWeightEntry(USER_ID, new CreateWeightEntryRequest(null, new BigDecimal("82.4"))))
 				.isInstanceOfSatisfying(ResponseStatusException.class,
 						e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
-		verify(entries, never()).save(any());
+		verify(weightEntryRepository, never()).save(any());
 	}
 
 }

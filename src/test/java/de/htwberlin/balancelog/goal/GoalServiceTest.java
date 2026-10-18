@@ -37,18 +37,18 @@ class GoalServiceTest {
 	private static final Instant WINDOW_START = NOW.minus(Duration.ofDays(28));
 
 	@Mock
-	private UserRepository users;
+	private UserRepository userRepository;
 
 	@Mock
-	private WeightEntryRepository entries;
+	private WeightEntryRepository weightEntryRepository;
 
-	private GoalService service;
+	private GoalService goalService;
 
 	private User user;
 
 	@BeforeEach
 	void setUp() {
-		service = new GoalService(users, entries, Clock.fixed(NOW, ZoneOffset.UTC));
+		goalService = new GoalService(userRepository, weightEntryRepository, Clock.fixed(NOW, ZoneOffset.UTC));
 		user = new User();
 		user.setId(USER_ID);
 	}
@@ -56,50 +56,50 @@ class GoalServiceTest {
 	@Test
 	void getReturnsTheGoal() {
 		user.setGoalKg(new BigDecimal("75.0"));
-		when(users.findById(USER_ID)).thenReturn(Optional.of(user));
+		when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
 
-		assertThat(service.get(USER_ID)).isEqualTo(new GoalResponse(new BigDecimal("75.0")));
+		assertThat(goalService.getGoal(USER_ID)).isEqualTo(new GoalResponse(new BigDecimal("75.0")));
 	}
 
 	@Test
 	void getRejectsAMissingGoalWith404() {
-		when(users.findById(USER_ID)).thenReturn(Optional.of(user));
+		when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
 
-		assertThatThrownBy(() -> service.get(USER_ID))
+		assertThatThrownBy(() -> goalService.getGoal(USER_ID))
 				.isInstanceOfSatisfying(ResponseStatusException.class,
 						e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
 	}
 
 	@Test
 	void getRejectsAnUnknownUserWith401() {
-		when(users.findById(USER_ID)).thenReturn(Optional.empty());
+		when(userRepository.findById(USER_ID)).thenReturn(Optional.empty());
 
-		assertThatThrownBy(() -> service.get(USER_ID))
+		assertThatThrownBy(() -> goalService.getGoal(USER_ID))
 				.isInstanceOfSatisfying(ResponseStatusException.class,
 						e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
 	}
 
 	@Test
 	void setStoresTheGoal() {
-		when(users.findById(USER_ID)).thenReturn(Optional.of(user));
-		when(users.save(user)).thenReturn(user);
+		when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+		when(userRepository.save(user)).thenReturn(user);
 
-		GoalResponse response = service.set(USER_ID, new GoalRequest(new BigDecimal("75.0")));
+		GoalResponse response = goalService.setGoal(USER_ID, new SetGoalRequest(new BigDecimal("75.0")));
 
 		assertThat(user.getGoalKg()).isEqualTo(new BigDecimal("75.0"));
-		verify(users).save(user);
+		verify(userRepository).save(user);
 		assertThat(response).isEqualTo(new GoalResponse(new BigDecimal("75.0")));
 	}
 
 	@Test
 	void progressReturnsLatestTargetAndKgToGo() {
 		user.setGoalKg(new BigDecimal("75.0"));
-		when(users.findById(USER_ID)).thenReturn(Optional.of(user));
+		when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
 		WeightEntry latest = entry("2026-10-28T06:30:00Z", "82.0");
-		when(entries.findFirstByOwnerIdOrderByMeasuredAtDesc(USER_ID)).thenReturn(Optional.of(latest));
-		when(entries.findAllInPeriod(USER_ID, WINDOW_START, null)).thenReturn(List.of(latest));
+		when(weightEntryRepository.findFirstByOwnerIdOrderByMeasuredAtDesc(USER_ID)).thenReturn(Optional.of(latest));
+		when(weightEntryRepository.findAllInPeriod(USER_ID, WINDOW_START, null)).thenReturn(List.of(latest));
 
-		ProgressResponse progress = service.progress(USER_ID);
+		ProgressResponse progress = goalService.getProgress(USER_ID);
 
 		assertThat(progress.latestKg()).isEqualTo(new BigDecimal("82.0"));
 		assertThat(progress.targetKg()).isEqualTo(new BigDecimal("75.0"));
@@ -109,47 +109,47 @@ class GoalServiceTest {
 	@Test
 	void progressKgPerWeekIsTheSlopeOverTheLast28Days() {
 		user.setGoalKg(new BigDecimal("75.0"));
-		when(users.findById(USER_ID)).thenReturn(Optional.of(user));
+		when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
 		List<WeightEntry> window = List.of(
 				entry("2026-10-07T07:00:00Z", "82.0"),
 				entry("2026-10-14T07:00:00Z", "81.5"),
 				entry("2026-10-21T07:00:00Z", "81.0"),
 				entry("2026-10-28T07:00:00Z", "80.5"));
-		when(entries.findFirstByOwnerIdOrderByMeasuredAtDesc(USER_ID)).thenReturn(Optional.of(window.get(3)));
-		when(entries.findAllInPeriod(USER_ID, WINDOW_START, null)).thenReturn(window);
+		when(weightEntryRepository.findFirstByOwnerIdOrderByMeasuredAtDesc(USER_ID)).thenReturn(Optional.of(window.get(3)));
+		when(weightEntryRepository.findAllInPeriod(USER_ID, WINDOW_START, null)).thenReturn(window);
 
-		assertThat(service.progress(USER_ID).kgPerWeek()).isEqualTo(new BigDecimal("-0.5"));
+		assertThat(goalService.getProgress(USER_ID).kgPerWeek()).isEqualTo(new BigDecimal("-0.5"));
 	}
 
 	@Test
 	void progressKgPerWeekIsNullUnderTwoEntries() {
 		user.setGoalKg(new BigDecimal("75.0"));
-		when(users.findById(USER_ID)).thenReturn(Optional.of(user));
+		when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
 		WeightEntry latest = entry("2026-10-28T06:30:00Z", "82.0");
-		when(entries.findFirstByOwnerIdOrderByMeasuredAtDesc(USER_ID)).thenReturn(Optional.of(latest));
-		when(entries.findAllInPeriod(USER_ID, WINDOW_START, null)).thenReturn(List.of(latest));
+		when(weightEntryRepository.findFirstByOwnerIdOrderByMeasuredAtDesc(USER_ID)).thenReturn(Optional.of(latest));
+		when(weightEntryRepository.findAllInPeriod(USER_ID, WINDOW_START, null)).thenReturn(List.of(latest));
 
-		assertThat(service.progress(USER_ID).kgPerWeek()).isNull();
+		assertThat(goalService.getProgress(USER_ID).kgPerWeek()).isNull();
 	}
 
 	@Test
 	void progressKgPerWeekIsNullUnderSevenDaysBetweenFirstAndLast() {
 		user.setGoalKg(new BigDecimal("75.0"));
-		when(users.findById(USER_ID)).thenReturn(Optional.of(user));
+		when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
 		List<WeightEntry> window = List.of(
 				entry("2026-10-22T07:00:00Z", "82.0"),
 				entry("2026-10-28T07:00:00Z", "81.0"));
-		when(entries.findFirstByOwnerIdOrderByMeasuredAtDesc(USER_ID)).thenReturn(Optional.of(window.get(1)));
-		when(entries.findAllInPeriod(USER_ID, WINDOW_START, null)).thenReturn(window);
+		when(weightEntryRepository.findFirstByOwnerIdOrderByMeasuredAtDesc(USER_ID)).thenReturn(Optional.of(window.get(1)));
+		when(weightEntryRepository.findAllInPeriod(USER_ID, WINDOW_START, null)).thenReturn(window);
 
-		assertThat(service.progress(USER_ID).kgPerWeek()).isNull();
+		assertThat(goalService.getProgress(USER_ID).kgPerWeek()).isNull();
 	}
 
 	@Test
 	void progressRejectsAMissingGoalWith404() {
-		when(users.findById(USER_ID)).thenReturn(Optional.of(user));
+		when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
 
-		assertThatThrownBy(() -> service.progress(USER_ID))
+		assertThatThrownBy(() -> goalService.getProgress(USER_ID))
 				.isInstanceOfSatisfying(ResponseStatusException.class,
 						e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
 	}
@@ -157,31 +157,31 @@ class GoalServiceTest {
 	@Test
 	void progressRejectsNoEntryWith404() {
 		user.setGoalKg(new BigDecimal("75.0"));
-		when(users.findById(USER_ID)).thenReturn(Optional.of(user));
-		when(entries.findFirstByOwnerIdOrderByMeasuredAtDesc(USER_ID)).thenReturn(Optional.empty());
+		when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+		when(weightEntryRepository.findFirstByOwnerIdOrderByMeasuredAtDesc(USER_ID)).thenReturn(Optional.empty());
 
-		assertThatThrownBy(() -> service.progress(USER_ID))
+		assertThatThrownBy(() -> goalService.getProgress(USER_ID))
 				.isInstanceOfSatisfying(ResponseStatusException.class,
 						e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
 	}
 
 	@Test
 	void progressRejectsAnUnknownUserWith401() {
-		when(users.findById(USER_ID)).thenReturn(Optional.empty());
+		when(userRepository.findById(USER_ID)).thenReturn(Optional.empty());
 
-		assertThatThrownBy(() -> service.progress(USER_ID))
+		assertThatThrownBy(() -> goalService.getProgress(USER_ID))
 				.isInstanceOfSatisfying(ResponseStatusException.class,
 						e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
 	}
 
 	@Test
 	void setRejectsAnUnknownUserWith401() {
-		when(users.findById(USER_ID)).thenReturn(Optional.empty());
+		when(userRepository.findById(USER_ID)).thenReturn(Optional.empty());
 
-		assertThatThrownBy(() -> service.set(USER_ID, new GoalRequest(new BigDecimal("75.0"))))
+		assertThatThrownBy(() -> goalService.setGoal(USER_ID, new SetGoalRequest(new BigDecimal("75.0"))))
 				.isInstanceOfSatisfying(ResponseStatusException.class,
 						e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
-		verify(users, never()).save(any());
+		verify(userRepository, never()).save(any());
 	}
 
 	private WeightEntry entry(String measuredAt, String weightKg) {

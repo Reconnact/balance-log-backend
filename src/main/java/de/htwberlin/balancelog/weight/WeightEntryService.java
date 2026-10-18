@@ -4,62 +4,78 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
+import lombok.extern.slf4j.Slf4j;
+
+import de.htwberlin.balancelog.apperror.AppError;
 import de.htwberlin.balancelog.user.User;
 import de.htwberlin.balancelog.user.UserRepository;
 
+@Slf4j
 @Service
 public class WeightEntryService {
 
-	private final WeightEntryRepository entries;
-	private final UserRepository users;
+	private final WeightEntryRepository weightEntryRepository;
+	private final UserRepository userRepository;
 
-	public WeightEntryService(WeightEntryRepository entries, UserRepository users) {
-		this.entries = entries;
-		this.users = users;
+	public WeightEntryService(WeightEntryRepository weightEntryRepository, UserRepository userRepository) {
+		this.weightEntryRepository = weightEntryRepository;
+		this.userRepository = userRepository;
 	}
 
-	public List<WeightEntryResponse> findAll(UUID ownerId, Instant from, Instant to) {
+	public List<WeightEntryResponse> listWeightEntries(UUID userId, Instant from, Instant to) {
 		if (from != null && to != null && from.isAfter(to)) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "from is after to.");
+			throw AppError.INVALID_DATE_RANGE.exception();
 		}
-		return entries.findAllInPeriod(ownerId, from, to).stream()
-				.map(WeightEntryService::toResponse)
+
+		return weightEntryRepository.findAllInPeriod(userId, from, to).stream()
+				.map(WeightEntryMapper::toResponse)
 				.toList();
 	}
 
-	public WeightEntryResponse findById(UUID id, UUID ownerId) {
-		return entries.findByIdAndOwnerId(id, ownerId)
-				.map(WeightEntryService::toResponse)
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+	public WeightEntryResponse getWeightEntry(UUID userId, UUID id) {
+		return weightEntryRepository.findByIdAndOwnerId(id, userId)
+				.map(WeightEntryMapper::toResponse)
+				.orElseThrow(AppError.WEIGHT_ENTRY_NOT_FOUND::exception);
 	}
 
-	public WeightEntryResponse create(UUID ownerId, WeightEntryRequest request) {
-		User owner = users.findById(ownerId)
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
-		Instant measuredAt = request.measuredAt() != null ? request.measuredAt() : Instant.now();
-		return toResponse(entries.save(new WeightEntry(null, owner, measuredAt, request.weightKg())));
+	public WeightEntryResponse createWeightEntry(UUID userId, CreateWeightEntryRequest request) {
+		User user = userRepository.findById(userId)
+				.orElseThrow(AppError.USER_NOT_FOUND::exception);
+
+		Instant measuredAt = Instant.now();
+		if (request.measuredAt() != null) {
+			measuredAt = request.measuredAt();
+		}
+
+		WeightEntry entry = weightEntryRepository.save(new WeightEntry(null, user, measuredAt, request.weightKg()));
+
+		log.info("weight entry created user_id={} entry_id={}", userId, entry.getId());
+
+		return WeightEntryMapper.toResponse(entry);
 	}
 
-	public WeightEntryResponse update(UUID id, UUID ownerId, WeightEntryUpdateRequest request) {
-		WeightEntry entry = entries.findByIdAndOwnerId(id, ownerId)
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+	public WeightEntryResponse updateWeightEntry(UUID userId, UUID id, UpdateWeightEntryRequest request) {
+		WeightEntry entry = weightEntryRepository.findByIdAndOwnerId(id, userId)
+				.orElseThrow(AppError.WEIGHT_ENTRY_NOT_FOUND::exception);
+
 		entry.setMeasuredAt(request.measuredAt());
 		entry.setWeightKg(request.weightKg());
-		return toResponse(entries.save(entry));
+		WeightEntry updated = weightEntryRepository.save(entry);
+
+		log.info("weight entry updated user_id={} entry_id={}", userId, id);
+
+		return WeightEntryMapper.toResponse(updated);
 	}
 
-	public void delete(UUID id, UUID ownerId) {
-		WeightEntry entry = entries.findByIdAndOwnerId(id, ownerId)
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-		entries.delete(entry);
-	}
+	public void deleteWeightEntry(UUID userId, UUID id) {
+		WeightEntry entry = weightEntryRepository.findByIdAndOwnerId(id, userId)
+				.orElseThrow(AppError.WEIGHT_ENTRY_NOT_FOUND::exception);
 
-	private static WeightEntryResponse toResponse(WeightEntry entry) {
-		return new WeightEntryResponse(entry.getId(), entry.getMeasuredAt(), entry.getWeightKg());
+		weightEntryRepository.delete(entry);
+
+		log.info("weight entry deleted user_id={} entry_id={}", userId, id);
 	}
 
 }

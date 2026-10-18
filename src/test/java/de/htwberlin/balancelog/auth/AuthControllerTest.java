@@ -121,7 +121,7 @@ class AuthControllerTest {
 
 	@Test
 	void profileReturns200WithToken() throws Exception {
-		when(authService.profile(ID)).thenReturn(new UserResponse(ID, "anna@example.com"));
+		when(authService.getProfile(ID)).thenReturn(new UserResponse(ID, "anna@example.com"));
 
 		mockMvc.perform(get("/profile").with(jwt().jwt(token -> token.subject(ID.toString()))))
 				.andExpect(status().isOk())

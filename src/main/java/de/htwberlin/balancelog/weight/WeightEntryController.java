@@ -26,43 +26,43 @@ import jakarta.validation.Valid;
 @RequestMapping("/weight-entries")
 public class WeightEntryController {
 
-	private final WeightEntryService service;
+	private final WeightEntryService weightEntryService;
 
-	public WeightEntryController(WeightEntryService service) {
-		this.service = service;
+	public WeightEntryController(WeightEntryService weightEntryService) {
+		this.weightEntryService = weightEntryService;
 	}
 
 	@GetMapping
-	public List<WeightEntryResponse> findAll(@RequestParam(required = false) Instant from,
+	public List<WeightEntryResponse> listWeightEntries(@RequestParam(required = false) Instant from,
 			@RequestParam(required = false) Instant to, @AuthenticationPrincipal Jwt jwt) {
-		return service.findAll(ownerId(jwt), from, to);
+		return weightEntryService.listWeightEntries(userId(jwt), from, to);
 	}
 
 	@GetMapping("/{id}")
-	public WeightEntryResponse findById(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
-		return service.findById(id, ownerId(jwt));
+	public WeightEntryResponse getWeightEntry(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
+		return weightEntryService.getWeightEntry(userId(jwt), id);
 	}
 
 	@PostMapping
-	public ResponseEntity<WeightEntryResponse> create(@Valid @RequestBody WeightEntryRequest request,
+	public ResponseEntity<WeightEntryResponse> createWeightEntry(@Valid @RequestBody CreateWeightEntryRequest request,
 			@AuthenticationPrincipal Jwt jwt) {
-		WeightEntryResponse created = service.create(ownerId(jwt), request);
+		WeightEntryResponse created = weightEntryService.createWeightEntry(userId(jwt), request);
 		return ResponseEntity.created(URI.create("/weight-entries/" + created.id())).body(created);
 	}
 
 	@PutMapping("/{id}")
-	public WeightEntryResponse update(@PathVariable UUID id, @Valid @RequestBody WeightEntryUpdateRequest request,
-			@AuthenticationPrincipal Jwt jwt) {
-		return service.update(id, ownerId(jwt), request);
+	public WeightEntryResponse updateWeightEntry(@PathVariable UUID id,
+			@Valid @RequestBody UpdateWeightEntryRequest request, @AuthenticationPrincipal Jwt jwt) {
+		return weightEntryService.updateWeightEntry(userId(jwt), id, request);
 	}
 
 	@DeleteMapping("/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	public void delete(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
-		service.delete(id, ownerId(jwt));
+	public void deleteWeightEntry(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
+		weightEntryService.deleteWeightEntry(userId(jwt), id);
 	}
 
-	private static UUID ownerId(Jwt jwt) {
+	private static UUID userId(Jwt jwt) {
 		return UUID.fromString(jwt.getSubject());
 	}
 

@@ -41,7 +41,7 @@ import de.htwberlin.balancelog.auth.SecurityConfig;
 @Import(SecurityConfig.class)
 class WeightEntryControllerTest {
 
-	private static final UUID OWNER_ID = UUID.fromString("5c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f");
+	private static final UUID USER_ID = UUID.fromString("5c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f");
 	private static final UUID ENTRY_ID = UUID.fromString("3f2b8c1e-6d4a-4f7e-9b2a-1c5d8e0f4a71");
 	private static final String WEIGHT_MESSAGE = "Between 20 and 400 kg, one decimal.";
 	private static final String MEASURED_AT_MESSAGE = "Can't be in the future.";
@@ -51,7 +51,7 @@ class WeightEntryControllerTest {
 	private MockMvc mockMvc;
 
 	@MockitoBean
-	private WeightEntryService service;
+	private WeightEntryService weightEntryService;
 
 	@Test
 	void getWeightEntriesReturns401WithoutToken() throws Exception {
@@ -61,7 +61,7 @@ class WeightEntryControllerTest {
 
 	@Test
 	void getWeightEntriesReturnsTheOwnersEntries() throws Exception {
-		when(service.findAll(OWNER_ID, null, null)).thenReturn(List.of(
+		when(weightEntryService.listWeightEntries(USER_ID, null, null)).thenReturn(List.of(
 				new WeightEntryResponse(UUID.fromString("3f2b8c1e-6d4a-4f7e-9b2a-1c5d8e0f4a71"),
 						Instant.parse("2026-10-01T06:30:00Z"), new BigDecimal("82.4")),
 				new WeightEntryResponse(UUID.fromString("a9e47d20-1b6c-4c3f-8e5d-7f2a9b0c6d13"),
@@ -83,19 +83,19 @@ class WeightEntryControllerTest {
 				.param("from", "2026-09-01T00:00:00Z")
 				.param("to", "2026-10-31T00:00:00Z"))
 				.andExpect(status().isOk());
-		verify(service).findAll(OWNER_ID, Instant.parse("2026-09-01T00:00:00Z"), Instant.parse("2026-10-31T00:00:00Z"));
+		verify(weightEntryService).listWeightEntries(USER_ID, Instant.parse("2026-09-01T00:00:00Z"), Instant.parse("2026-10-31T00:00:00Z"));
 	}
 
 	@Test
 	void getWeightEntriesReturns400ForAFromThatIsNoInstant() throws Exception {
 		mockMvc.perform(get("/weight-entries").with(owner()).param("from", "last week"))
 				.andExpect(status().isBadRequest());
-		verifyNoInteractions(service);
+		verifyNoInteractions(weightEntryService);
 	}
 
 	@Test
 	void getWeightEntryReturnsTheEntry() throws Exception {
-		when(service.findById(ENTRY_ID, OWNER_ID)).thenReturn(
+		when(weightEntryService.getWeightEntry(USER_ID, ENTRY_ID)).thenReturn(
 				new WeightEntryResponse(ENTRY_ID, Instant.parse("2026-10-01T06:30:00Z"), new BigDecimal("82.4")));
 
 		mockMvc.perform(get("/weight-entries/{id}", ENTRY_ID).with(owner()))
@@ -106,7 +106,7 @@ class WeightEntryControllerTest {
 
 	@Test
 	void getWeightEntryReturns404ForAForeignId() throws Exception {
-		when(service.findById(ENTRY_ID, OWNER_ID)).thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND));
+		when(weightEntryService.getWeightEntry(USER_ID, ENTRY_ID)).thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND));
 
 		mockMvc.perform(get("/weight-entries/{id}", ENTRY_ID).with(owner()))
 				.andExpect(status().isNotFound());
@@ -116,7 +116,7 @@ class WeightEntryControllerTest {
 	void getWeightEntryReturns400ForAnIdThatIsNoUuid() throws Exception {
 		mockMvc.perform(get("/weight-entries/{id}", "42").with(owner()))
 				.andExpect(status().isBadRequest());
-		verifyNoInteractions(service);
+		verifyNoInteractions(weightEntryService);
 	}
 
 	@Test
@@ -127,7 +127,7 @@ class WeightEntryControllerTest {
 
 	@Test
 	void postWeightEntryReturns201WithLocation() throws Exception {
-		when(service.create(eq(OWNER_ID), any())).thenReturn(
+		when(weightEntryService.createWeightEntry(eq(USER_ID), any())).thenReturn(
 				new WeightEntryResponse(ENTRY_ID, Instant.parse("2026-10-01T06:30:00Z"), new BigDecimal("82.4")));
 
 		mockMvc.perform(post("/weight-entries").with(owner()).contentType(MediaType.APPLICATION_JSON)
@@ -147,7 +147,7 @@ class WeightEntryControllerTest {
 				.content(content))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.errors." + field).value(message));
-		verifyNoInteractions(service);
+		verifyNoInteractions(weightEntryService);
 	}
 
 	static Stream<Arguments> invalidRequests() {
@@ -167,12 +167,12 @@ class WeightEntryControllerTest {
 		mockMvc.perform(post("/weight-entries").contentType(MediaType.APPLICATION_JSON)
 				.content(body("2026-10-01T06:30:00Z", "82.4")))
 				.andExpect(status().isUnauthorized());
-		verifyNoInteractions(service);
+		verifyNoInteractions(weightEntryService);
 	}
 
 	@Test
 	void putWeightEntryReturns200WithTheEntry() throws Exception {
-		when(service.update(eq(ENTRY_ID), eq(OWNER_ID), any())).thenReturn(
+		when(weightEntryService.updateWeightEntry(eq(USER_ID), eq(ENTRY_ID), any())).thenReturn(
 				new WeightEntryResponse(ENTRY_ID, Instant.parse("2026-10-02T07:00:00Z"), new BigDecimal("81.9")));
 
 		mockMvc.perform(put("/weight-entries/{id}", ENTRY_ID).with(owner()).contentType(MediaType.APPLICATION_JSON)
@@ -185,7 +185,7 @@ class WeightEntryControllerTest {
 
 	@Test
 	void putWeightEntryReturns404ForAForeignId() throws Exception {
-		when(service.update(eq(ENTRY_ID), eq(OWNER_ID), any()))
+		when(weightEntryService.updateWeightEntry(eq(USER_ID), eq(ENTRY_ID), any()))
 				.thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND));
 
 		mockMvc.perform(put("/weight-entries/{id}", ENTRY_ID).with(owner()).contentType(MediaType.APPLICATION_JSON)
@@ -201,7 +201,7 @@ class WeightEntryControllerTest {
 				.content(content))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.errors." + field).value(message));
-		verifyNoInteractions(service);
+		verifyNoInteractions(weightEntryService);
 	}
 
 	static Stream<Arguments> invalidUpdates() {
@@ -214,19 +214,19 @@ class WeightEntryControllerTest {
 		mockMvc.perform(put("/weight-entries/{id}", ENTRY_ID).contentType(MediaType.APPLICATION_JSON)
 				.content(body("2026-10-02T07:00:00Z", "81.9")))
 				.andExpect(status().isUnauthorized());
-		verifyNoInteractions(service);
+		verifyNoInteractions(weightEntryService);
 	}
 
 	@Test
 	void deleteWeightEntryReturns204() throws Exception {
 		mockMvc.perform(delete("/weight-entries/{id}", ENTRY_ID).with(owner()))
 				.andExpect(status().isNoContent());
-		verify(service).delete(ENTRY_ID, OWNER_ID);
+		verify(weightEntryService).deleteWeightEntry(USER_ID, ENTRY_ID);
 	}
 
 	@Test
 	void deleteWeightEntryReturns404ForAForeignId() throws Exception {
-		doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND)).when(service).delete(ENTRY_ID, OWNER_ID);
+		doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND)).when(weightEntryService).deleteWeightEntry(USER_ID, ENTRY_ID);
 
 		mockMvc.perform(delete("/weight-entries/{id}", ENTRY_ID).with(owner()))
 				.andExpect(status().isNotFound());
@@ -236,7 +236,7 @@ class WeightEntryControllerTest {
 	void deleteWeightEntryReturns401WithoutToken() throws Exception {
 		mockMvc.perform(delete("/weight-entries/{id}", ENTRY_ID))
 				.andExpect(status().isUnauthorized());
-		verifyNoInteractions(service);
+		verifyNoInteractions(weightEntryService);
 	}
 
 	private static String body(String measuredAt, String weightKg) {
@@ -244,7 +244,7 @@ class WeightEntryControllerTest {
 	}
 
 	private static RequestPostProcessor owner() {
-		return jwt().jwt(token -> token.subject(OWNER_ID.toString()));
+		return jwt().jwt(token -> token.subject(USER_ID.toString()));
 	}
 
 }

@@ -34,8 +34,8 @@ public class AuthController {
 	}
 
 	@GetMapping("/profile")
-	public UserResponse profile(@AuthenticationPrincipal Jwt jwt) {
-		return authService.profile(UUID.fromString(jwt.getSubject()));
+	public UserResponse getProfile(@AuthenticationPrincipal Jwt jwt) {
+		return authService.getProfile(UUID.fromString(jwt.getSubject()));
 	}
 
 }

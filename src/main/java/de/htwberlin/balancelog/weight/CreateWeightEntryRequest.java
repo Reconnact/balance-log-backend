@@ -9,7 +9,7 @@ import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
 
-public record WeightEntryRequest(
+public record CreateWeightEntryRequest(
 		@PastOrPresent(message = "Can't be in the future.")
 		Instant measuredAt,
 

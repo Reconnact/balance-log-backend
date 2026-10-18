@@ -9,53 +9,63 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
+import lombok.extern.slf4j.Slf4j;
+
+import de.htwberlin.balancelog.apperror.AppError;
 import de.htwberlin.balancelog.user.User;
 import de.htwberlin.balancelog.user.UserRepository;
 import de.htwberlin.balancelog.weight.WeightEntry;
 import de.htwberlin.balancelog.weight.WeightEntryRepository;
 
+@Slf4j
 @Service
 public class GoalService {
 
 	private static final Duration RATE_WINDOW = Duration.ofDays(28);
 	private static final Duration MIN_RATE_SPAN = Duration.ofDays(7);
 
-	private final UserRepository users;
-	private final WeightEntryRepository entries;
+	private final UserRepository userRepository;
+	private final WeightEntryRepository weightEntryRepository;
 	private final Clock clock;
 
-	public GoalService(UserRepository users, WeightEntryRepository entries, Clock clock) {
-		this.users = users;
-		this.entries = entries;
+	public GoalService(UserRepository userRepository, WeightEntryRepository weightEntryRepository, Clock clock) {
+		this.userRepository = userRepository;
+		this.weightEntryRepository = weightEntryRepository;
 		this.clock = clock;
 	}
 
-	public GoalResponse get(UUID userId) {
-		User user = user(userId);
+	public GoalResponse getGoal(UUID userId) {
+		User user = getUser(userId);
 		if (user.getGoalKg() == null) {
-			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No goal set.");
+			throw AppError.GOAL_NOT_FOUND.exception();
 		}
+
 		return new GoalResponse(user.getGoalKg());
 	}
 
-	public GoalResponse set(UUID userId, GoalRequest request) {
-		User user = user(userId);
+	public GoalResponse setGoal(UUID userId, SetGoalRequest request) {
+		User user = getUser(userId);
+
 		user.setGoalKg(request.targetKg());
-		return new GoalResponse(users.save(user).getGoalKg());
+		User updated = userRepository.save(user);
+
+		log.info("goal set user_id={}", userId);
+
+		return new GoalResponse(updated.getGoalKg());
 	}
 
-	public ProgressResponse progress(UUID userId) {
-		User user = user(userId);
+	public ProgressResponse getProgress(UUID userId) {
+		User user = getUser(userId);
 		if (user.getGoalKg() == null) {
-			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No goal set.");
+			throw AppError.GOAL_NOT_FOUND.exception();
 		}
-		WeightEntry latest = entries.findFirstByOwnerIdOrderByMeasuredAtDesc(userId)
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No weight logged."));
-		List<WeightEntry> window = entries.findAllInPeriod(userId, clock.instant().minus(RATE_WINDOW), null);
+
+		WeightEntry latest = weightEntryRepository.findFirstByOwnerIdOrderByMeasuredAtDesc(userId)
+				.orElseThrow(AppError.NO_WEIGHT_ENTRIES::exception);
+		List<WeightEntry> window = weightEntryRepository.findAllInPeriod(userId, clock.instant().minus(RATE_WINDOW), null);
+
 		return new ProgressResponse(latest.getWeightKg(), user.getGoalKg(),
 				user.getGoalKg().subtract(latest.getWeightKg()), kgPerWeek(window));
 	}
@@ -68,12 +78,14 @@ public class GoalService {
 		if (Duration.between(first, entries.getLast().getMeasuredAt()).compareTo(MIN_RATE_SPAN) < 0) {
 			return null;
 		}
+
 		double[] days = entries.stream()
 				.mapToDouble(entry -> Duration.between(first, entry.getMeasuredAt()).toSeconds() / 86_400.0)
 				.toArray();
 		double[] kgs = entries.stream().mapToDouble(entry -> entry.getWeightKg().doubleValue()).toArray();
 		double meanDay = Arrays.stream(days).average().orElseThrow();
 		double meanKg = Arrays.stream(kgs).average().orElseThrow();
+
 		double covariance = 0;
 		double variance = 0;
 		for (int i = 0; i < days.length; i++) {
@@ -83,9 +95,9 @@ public class GoalService {
 		return BigDecimal.valueOf(covariance / variance * 7).setScale(1, RoundingMode.HALF_UP);
 	}
 
-	private User user(UUID userId) {
-		return users.findById(userId)
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+	private User getUser(UUID userId) {
+		return userRepository.findById(userId)
+				.orElseThrow(AppError.USER_NOT_FOUND::exception);
 	}
 
 }

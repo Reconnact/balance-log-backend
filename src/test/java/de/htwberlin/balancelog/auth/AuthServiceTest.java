@@ -31,32 +31,32 @@ class AuthServiceTest {
 	private static final UUID ID = UUID.fromString("5c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f");
 
 	@Mock
-	private UserRepository users;
+	private UserRepository userRepository;
 
 	@Mock
 	private TokenService tokenService;
 
 	private final PasswordEncoder passwordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
 
-	private AuthService service;
+	private AuthService authService;
 
 	@BeforeEach
 	void setUp() {
-		service = new AuthService(users, passwordEncoder, tokenService);
+		authService = new AuthService(userRepository, passwordEncoder, tokenService);
 	}
 
 	@Test
 	void registerLowercasesEmailAndHashesPassword() {
-		when(users.save(any(User.class))).thenAnswer(invocation -> {
+		when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
 			User user = invocation.getArgument(0);
 			user.setId(ID);
 			return user;
 		});
 
-		UserResponse response = service.register(new RegisterRequest("Anna@Example.com", "12345678"));
+		UserResponse response = authService.register(new RegisterRequest("Anna@Example.com", "12345678"));
 
 		ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
-		verify(users).save(saved.capture());
+		verify(userRepository).save(saved.capture());
 		assertThat(saved.getValue().getEmail()).isEqualTo("anna@example.com");
 		assertThat(saved.getValue().getPasswordHash()).startsWith("{bcrypt}");
 		assertThat(passwordEncoder.matches("12345678", saved.getValue().getPasswordHash())).isTrue();
@@ -65,54 +65,54 @@ class AuthServiceTest {
 
 	@Test
 	void registerRejectsTakenEmailWith409() {
-		when(users.existsByEmail("anna@example.com")).thenReturn(true);
+		when(userRepository.existsByEmail("anna@example.com")).thenReturn(true);
 
-		assertThatThrownBy(() -> service.register(new RegisterRequest("Anna@example.com", "12345678")))
+		assertThatThrownBy(() -> authService.register(new RegisterRequest("Anna@example.com", "12345678")))
 				.isInstanceOfSatisfying(ResponseStatusException.class,
 						e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
-		verify(users, never()).save(any());
+		verify(userRepository, never()).save(any());
 	}
 
 	@Test
 	void loginReturnsTokenForRightPassword() {
 		User user = user("12345678");
 		TokenResponse token = new TokenResponse("token", Instant.parse("2026-10-19T10:00:00Z"));
-		when(users.findByEmail("anna@example.com")).thenReturn(Optional.of(user));
+		when(userRepository.findByEmail("anna@example.com")).thenReturn(Optional.of(user));
 		when(tokenService.create(user)).thenReturn(token);
 
-		assertThat(service.login(new LoginRequest("Anna@example.com", "12345678"))).isEqualTo(token);
+		assertThat(authService.login(new LoginRequest("Anna@example.com", "12345678"))).isEqualTo(token);
 	}
 
 	@Test
 	void loginRejectsWrongPasswordWith401() {
-		when(users.findByEmail("anna@example.com")).thenReturn(Optional.of(user("12345678")));
+		when(userRepository.findByEmail("anna@example.com")).thenReturn(Optional.of(user("12345678")));
 
-		assertThatThrownBy(() -> service.login(new LoginRequest("anna@example.com", "87654321")))
+		assertThatThrownBy(() -> authService.login(new LoginRequest("anna@example.com", "87654321")))
 				.isInstanceOfSatisfying(ResponseStatusException.class,
 						e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
 	}
 
 	@Test
 	void loginRejectsUnknownEmailWith401() {
-		when(users.findByEmail("nobody@example.com")).thenReturn(Optional.empty());
+		when(userRepository.findByEmail("nobody@example.com")).thenReturn(Optional.empty());
 
-		assertThatThrownBy(() -> service.login(new LoginRequest("nobody@example.com", "12345678")))
+		assertThatThrownBy(() -> authService.login(new LoginRequest("nobody@example.com", "12345678")))
 				.isInstanceOfSatisfying(ResponseStatusException.class,
 						e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
 	}
 
 	@Test
 	void profileReturnsUser() {
-		when(users.findById(ID)).thenReturn(Optional.of(user("12345678")));
+		when(userRepository.findById(ID)).thenReturn(Optional.of(user("12345678")));
 
-		assertThat(service.profile(ID)).isEqualTo(new UserResponse(ID, "anna@example.com"));
+		assertThat(authService.getProfile(ID)).isEqualTo(new UserResponse(ID, "anna@example.com"));
 	}
 
 	@Test
 	void profileRejectsUnknownUserWith401() {
-		when(users.findById(ID)).thenReturn(Optional.empty());
+		when(userRepository.findById(ID)).thenReturn(Optional.empty());
 
-		assertThatThrownBy(() -> service.profile(ID))
+		assertThatThrownBy(() -> authService.getProfile(ID))
 				.isInstanceOfSatisfying(ResponseStatusException.class,
 						e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
 	}

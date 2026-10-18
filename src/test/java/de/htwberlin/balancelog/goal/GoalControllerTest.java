@@ -41,11 +41,11 @@ class GoalControllerTest {
 	private MockMvc mockMvc;
 
 	@MockitoBean
-	private GoalService service;
+	private GoalService goalService;
 
 	@Test
 	void getGoalReturnsTheGoal() throws Exception {
-		when(service.get(USER_ID)).thenReturn(new GoalResponse(new BigDecimal("75.0")));
+		when(goalService.getGoal(USER_ID)).thenReturn(new GoalResponse(new BigDecimal("75.0")));
 
 		mockMvc.perform(get("/goal").with(user()))
 				.andExpect(status().isOk())
@@ -54,7 +54,7 @@ class GoalControllerTest {
 
 	@Test
 	void getGoalReturns404WithoutAGoal() throws Exception {
-		when(service.get(USER_ID)).thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND));
+		when(goalService.getGoal(USER_ID)).thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND));
 
 		mockMvc.perform(get("/goal").with(user()))
 				.andExpect(status().isNotFound());
@@ -64,12 +64,12 @@ class GoalControllerTest {
 	void getGoalReturns401WithoutToken() throws Exception {
 		mockMvc.perform(get("/goal"))
 				.andExpect(status().isUnauthorized());
-		verifyNoInteractions(service);
+		verifyNoInteractions(goalService);
 	}
 
 	@Test
 	void getProgressReturnsTheProgress() throws Exception {
-		when(service.progress(USER_ID)).thenReturn(new ProgressResponse(new BigDecimal("82.0"),
+		when(goalService.getProgress(USER_ID)).thenReturn(new ProgressResponse(new BigDecimal("82.0"),
 				new BigDecimal("75.0"), new BigDecimal("-7.0"), null));
 
 		mockMvc.perform(get("/progress").with(user()))
@@ -82,7 +82,7 @@ class GoalControllerTest {
 
 	@Test
 	void getProgressReturns404WithoutGoalOrEntry() throws Exception {
-		when(service.progress(USER_ID)).thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND));
+		when(goalService.getProgress(USER_ID)).thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND));
 
 		mockMvc.perform(get("/progress").with(user()))
 				.andExpect(status().isNotFound());
@@ -92,12 +92,12 @@ class GoalControllerTest {
 	void getProgressReturns401WithoutToken() throws Exception {
 		mockMvc.perform(get("/progress"))
 				.andExpect(status().isUnauthorized());
-		verifyNoInteractions(service);
+		verifyNoInteractions(goalService);
 	}
 
 	@Test
 	void putGoalReturns200WithTheGoal() throws Exception {
-		when(service.set(eq(USER_ID), any())).thenReturn(new GoalResponse(new BigDecimal("75.0")));
+		when(goalService.setGoal(eq(USER_ID), any())).thenReturn(new GoalResponse(new BigDecimal("75.0")));
 
 		mockMvc.perform(put("/goal").with(user()).contentType(MediaType.APPLICATION_JSON).content(body("75.0")))
 				.andExpect(status().isOk())
@@ -110,7 +110,7 @@ class GoalControllerTest {
 		mockMvc.perform(put("/goal").with(user()).contentType(MediaType.APPLICATION_JSON).content(content))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.errors.targetKg").value(TARGET_MESSAGE));
-		verifyNoInteractions(service);
+		verifyNoInteractions(goalService);
 	}
 
 	static Stream<Arguments> invalidRequests() {
@@ -125,7 +125,7 @@ class GoalControllerTest {
 	void putGoalReturns401WithoutToken() throws Exception {
 		mockMvc.perform(put("/goal").contentType(MediaType.APPLICATION_JSON).content(body("75.0")))
 				.andExpect(status().isUnauthorized());
-		verifyNoInteractions(service);
+		verifyNoInteractions(goalService);
 	}
 
 	private static String body(String targetKg) {

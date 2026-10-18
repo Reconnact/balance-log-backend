@@ -1,4 +1,4 @@
-package de.htwberlin.balancelog.error;
+package de.htwberlin.balancelog.apperror;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
